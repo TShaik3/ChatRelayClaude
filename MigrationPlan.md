@@ -6,7 +6,7 @@ Jackson is Spring Boot's default JSON library for both REST bodies and STOMP ove
 
 ## Phase 0 — Project scaffolding
 - Convert to a **Gradle** multi-project build: `:backend` (Spring Boot) and a sibling `frontend/` (Svelte, own `package.json`, not a Gradle module).
-- `backend/build.gradle.kts` dependencies: `spring-boot-starter-web`, `spring-boot-starter-websocket`, `spring-boot-starter-security`, `spring-boot-starter-jdbc`, `org.postgresql:postgresql`, `com.google.code.gson:gson`, `spring-boot-starter-test`, `org.testcontainers:postgresql`.
+- `backend/build.gradle.kts` dependencies: `spring-boot-starter-web`, `spring-boot-starter-websocket`, `spring-boot-starter-security`, `spring-boot-starter-jdbc`, `org.postgresql:postgresql`, `spring-boot-starter-test`, `org.testcontainers:postgresql` (Jackson ships transitively with `spring-boot-starter-web`/`-websocket`).
 - Keep `run-tests.sh`'s intent but replace it with Gradle's `test` task; existing JUnit 5 tests in `test/` port over almost as-is once repackaged under `backend/src/test/java`.
 - Add Flyway (`flyway-core` + `flyway-database-postgresql`) for schema migrations — cheap to add now, saves pain later.
 
@@ -22,7 +22,7 @@ Jackson is Spring Boot's default JSON library for both REST bodies and STOMP ove
 
 ## Phase 2 — Domain model cleanup
 - Strip `Serializable`, `toString()`/`toStringClient()` wire-format methods from `AbstractUser`/`User`/`ITAdmin`/`Chat`/`Message` — those existed only to serialize over the raw socket protocol.
-- Introduce API-facing DTOs (`UserDto`, `ChatDto`, `MessageDto`) that Gson serializes directly; keep domain objects as persistence-layer models mapped by the JDBC repositories.
+- Introduce API-facing DTOs (`UserDto`, `ChatDto`, `MessageDto`) that Jackson serializes directly; keep domain objects as persistence-layer models mapped by the JDBC repositories.
 
 ## Phase 3 — Backend API & realtime
 - REST controllers replacing the `ActionType` switch in `Server.java`:
@@ -31,8 +31,8 @@ Jackson is Spring Boot's default JSON library for both REST bodies and STOMP ove
   - `ChatController` — `POST /chats`, `PUT /chats/{id}/rename`, `POST /chats/{id}/members`, `DELETE /chats/{id}/members/{userId}`
   - `MessageController` — `GET /chats/{id}/messages`, `POST /chats/{id}/messages`
 - **Spring Security**: session or JWT-based auth (session is simpler for a first cut), `BCryptPasswordEncoder`, an admin-only `@PreAuthorize` guard replacing `Server.requireAdmin`.
-- **Gson wiring**: register a `GsonHttpMessageConverter` bean and set it ahead of Jackson in `WebMvcConfigurer.extendMessageConverters`, so REST bodies use Gson instead of the Spring Boot default.
-- **Realtime**: Spring `@EnableWebSocketMessageBroker` (STOMP) with per-chat topics (`/topic/chats/{chatId}`) and a per-user queue (`/user/queue/updates`) — this replaces `Server.sendPacketToUsers`/`ClientHandler.sendPacket`. Since STOMP's default (de)serialization is Jackson-based, either accept Jackson for the WS layer only, or supply a custom `MessageConverter` that shells out to Gson — decide based on how strongly "Gson everywhere" matters vs. shipping speed.
+- **Jackson**: no extra wiring needed — Spring Boot auto-configures `MappingJackson2HttpMessageConverter` for REST bodies out of the box.
+- **Realtime**: Spring `@EnableWebSocketMessageBroker` (STOMP) with per-chat topics (`/topic/chats/{chatId}`) and a per-user queue (`/user/queue/updates`) — this replaces `Server.sendPacketToUsers`/`ClientHandler.sendPacket`. STOMP's default (de)serialization is also Jackson-based, so the same DTOs from Phase 2 work unchanged across REST and WebSocket.
 
 ## Phase 4 — Svelte frontend
 - Scaffold with Vite (`npm create vite@latest frontend -- --template svelte`).
