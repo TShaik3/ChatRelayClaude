@@ -12,4 +12,13 @@ export default defineConfig({
       },
     },
   },
+  // Without this, Vitest (running under Node) resolves the "svelte" package's server/SSR export
+  // condition instead of its browser one, so every component's compiled `mount()` throws
+  // "not available on the server" the moment a test tries to render it.
+  resolve: process.env.VITEST ? { conditions: ["browser"] } : undefined,
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test-setup.js"],
+  },
 });

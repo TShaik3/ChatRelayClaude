@@ -12,16 +12,16 @@ import java.util.UUID;
 /**
  * A throwaway Postgres schema, migrated with the app's real Flyway scripts, standing in for the
  * old "@TempDir Path dbDir" isolation the flat-file DBManager tests used to get for free: each
- * call to createSchema() is a fresh, empty logical database within the shared chatrelay_test
- * database, dropped again on close(). Point multiple DBManager instances at the same
- * TestDatabase's dataSource() to simulate a process restart against un-wiped data.
+ * call to createSchema() is a fresh, empty logical database within a shared Testcontainers
+ * Postgres instance (see TestPostgresContainer), dropped again on close(). Point multiple
+ * DBManager instances at the same TestDatabase's dataSource() to simulate a process restart
+ * against un-wiped data.
  */
 public class TestDatabase implements AutoCloseable {
 
-    private static final String BASE_URL = System.getenv().getOrDefault(
-            "CHATRELAY_TEST_DB_URL", "jdbc:postgresql://localhost:5432/chatrelay_test");
-    private static final String USER = System.getenv().getOrDefault("CHATRELAY_TEST_DB_USER", "chatrelay");
-    private static final String PASSWORD = System.getenv().getOrDefault("CHATRELAY_TEST_DB_PASSWORD", "chatrelay");
+    private static final String BASE_URL = TestPostgresContainer.jdbcUrl();
+    private static final String USER = TestPostgresContainer.username();
+    private static final String PASSWORD = TestPostgresContainer.password();
 
     private final String schemaName;
     private final DataSource dataSource;
