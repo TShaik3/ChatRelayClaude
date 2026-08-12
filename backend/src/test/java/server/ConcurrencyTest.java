@@ -3,15 +3,13 @@ package server;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import packet.ActionType;
 import packet.Packet;
 import packet.Status;
 import support.TestConnection;
+import support.TestDatabase;
 import support.TestServerHarness;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -25,7 +23,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static support.TestConnection.args;
 
 /**
@@ -36,19 +33,19 @@ import static support.TestConnection.args;
  */
 class ConcurrencyTest {
 
-    @TempDir
-    Path dbDir;
-
+    private TestDatabase testDb;
     private TestServerHarness harness;
 
     @BeforeEach
     void startServer() throws Exception {
-        harness = new TestServerHarness(dbDir);
+        testDb = TestDatabase.createSchema();
+        harness = new TestServerHarness(testDb.dataSource());
     }
 
     @AfterEach
     void stopServer() {
         harness.close();
+        testDb.close();
     }
 
     // CNC-1
@@ -142,8 +139,8 @@ class ConcurrencyTest {
             drainExactly(member, totalMessages);
         }
 
-        long persistedLines = Files.lines(dbDir.resolve("Messages.txt")).count();
-        assertEquals(totalMessages, persistedLines, "no lost/corrupted writes to Messages.txt under concurrent senders");
+        long persistedRows = testDb.countRows("messages");
+        assertEquals(totalMessages, persistedRows, "no lost/corrupted writes to messages under concurrent senders");
     }
 
     private void drainExactly(TestConnection conn, int expectedCount) throws Exception {
@@ -253,10 +250,7 @@ class ConcurrencyTest {
         assertEquals(ActionType.NEW_CHAT_BROADCAST, createResult.getActionType());
         assertEquals(ActionType.ADD_USER_TO_CHAT_BROADCAST, addResult.getActionType());
 
-        long chatLines = Files.lines(dbDir.resolve("Chats.txt")).count();
-        assertEquals(2, chatLines, "both the pre-existing and newly created chat must be present, no corruption");
-        for (String line : Files.readAllLines(dbDir.resolve("Chats.txt"))) {
-            assertTrue(line.split("/").length >= 4, "every persisted line must still be well-formed: " + line);
-        }
+        long chatRows = testDb.countRows("chats");
+        assertEquals(2, chatRows, "both the pre-existing and newly created chat must be present, no corruption");
     }
 }

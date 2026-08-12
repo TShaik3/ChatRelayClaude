@@ -62,4 +62,21 @@ public class Message {
     public String toString() {
         return id + "/" + createdAt + "/" + Packet.sanitize(content) + "/" + author.getId() + "/" + chat.getId();
     }
+
+    /**
+     * Identity is the persistent id, not the Java object reference -- required now that
+     * DBManager rebuilds a fresh instance from the database on every read instead of returning
+     * a cached object from an in-memory map.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Message other)) return false;
+        return id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
 }

@@ -3,15 +3,14 @@ package server;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import packet.ActionType;
 import packet.Packet;
 import packet.Status;
 import support.TestConnection;
+import support.TestDatabase;
 import support.TestServerHarness;
 
 import java.net.SocketTimeoutException;
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,24 +20,24 @@ import static support.TestConnection.args;
 
 /**
  * Protocol-level integration tests: real sockets, real Server, real
- * DBManager against an isolated temp directory per test. IDs in comments
+ * DBManager against an isolated Postgres schema per test. IDs in comments
  * refer to TEST_PLAN.md section 6.
  */
 class ServerProtocolTest {
 
-    @TempDir
-    Path dbDir;
-
+    private TestDatabase testDb;
     private TestServerHarness harness;
 
     @BeforeEach
     void startServer() throws Exception {
-        harness = new TestServerHarness(dbDir);
+        testDb = TestDatabase.createSchema();
+        harness = new TestServerHarness(testDb.dataSource());
     }
 
     @AfterEach
     void stopServer() {
         harness.close();
+        testDb.close();
     }
 
     // ---- 6.1 Login / session ----

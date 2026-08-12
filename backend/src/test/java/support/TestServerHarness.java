@@ -2,18 +2,17 @@ package support;
 
 import server.Server;
 
+import javax.sql.DataSource;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Boots a real Server against an isolated temp DB directory on an
- * OS-assigned ephemeral port, for integration tests to connect real
- * sockets to. Always pair with try-with-resources or an explicit close()
- * in an @AfterEach so the accept-loop thread and any open sockets don't
- * leak between tests.
+ * Boots a real Server against a DataSource (see TestDatabase for the isolated-per-test-schema
+ * factory) on an OS-assigned ephemeral port, for integration tests to connect real sockets to.
+ * Always pair with try-with-resources or an explicit close() in an @AfterEach so the accept-loop
+ * thread and any open sockets don't leak between tests.
  */
 public class TestServerHarness implements AutoCloseable {
 
@@ -22,8 +21,8 @@ public class TestServerHarness implements AutoCloseable {
     private final int port;
     private final List<TestConnection> openConnections = new CopyOnWriteArrayList<>();
 
-    public TestServerHarness(Path dbDir) throws InterruptedException {
-        this.server = new Server(0, "127.0.0.1", dbDir.toString());
+    public TestServerHarness(DataSource dataSource) throws InterruptedException {
+        this.server = new Server(0, "127.0.0.1", dataSource);
         AtomicReference<IOException> failure = new AtomicReference<>();
         this.serverThread = new Thread(() -> {
             try {

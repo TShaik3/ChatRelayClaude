@@ -6,7 +6,9 @@ import model.Message;
 import packet.ActionType;
 import packet.Packet;
 import packet.Status;
+import server.support.Migrations;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -31,15 +33,12 @@ public class Server {
     private volatile ServerSocket serverSocket;
     private final CountDownLatch boundLatch = new CountDownLatch(1);
 
-    public Server(int port, String IP) {
-        this(port, IP, "./dbFiles/development");
-    }
-
-    /** Lets tests point the DB at an isolated, throwaway directory instead of the default. */
-    public Server(int port, String IP, String dbFilePath) {
+    /** Runs pending Flyway migrations against dataSource before serving any connections. */
+    public Server(int port, String IP, DataSource dataSource) {
         this.port = port;
         this.IP = IP;
-        this.dbManager = new DBManager(dbFilePath, "Users.txt", "Chats.txt", "Messages.txt");
+        Migrations.migrate(dataSource);
+        this.dbManager = new DBManager(dataSource);
         seedDefaultAdmin();
     }
 

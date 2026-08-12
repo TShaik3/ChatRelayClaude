@@ -5,195 +5,59 @@ import model.Chat;
 import model.ITAdmin;
 import model.Message;
 import model.User;
-import packet.Packet;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import server.repository.ChatRepository;
+import server.repository.MessageRepository;
+import server.repository.UserRepository;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * File-backed persistence and business logic for users, chats and messages.
- * Data lives in plain "/"-delimited text files under txtFilePath; the maps
- * held in memory are the source of truth while the server is running, and
- * are rewritten to disk on every mutation.
+ * Business logic for users, chats and messages, backed by PostgreSQL via the
+ * repository classes in server.repository. Postgres is the sole source of
+ * truth -- there is no in-memory cache -- so id counters (AbstractUser/Chat/
+ * Message) are bootstrapped from the current max id in each table on
+ * construction, mirroring what the old flat-file loader used to do by
+ * scanning every line.
  */
 public class DBManager {
 
-    private final ConcurrentHashMap<String, AbstractUser> users = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Chat> chats = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Message> messages = new ConcurrentHashMap<>();
+    private final UserRepository userRepository;
+    private final ChatRepository chatRepository;
+    private final MessageRepository messageRepository;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    private final String txtFilePath;
-    private final String userTxtFilename;
-    private final String chatTxtFilename;
-    private final String messageTxtFilename;
+    public DBManager(DataSource dataSource) {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        this.userRepository = new UserRepository(jdbc);
+        this.chatRepository = new ChatRepository(jdbc, userRepository);
+        this.messageRepository = new MessageRepository(jdbc);
 
-    private final Object fileLock = new Object();
-
-    public DBManager(String filepath, String userTxtFilename, String chatTxtFilename, String messageTxtFilename) {
-        this.txtFilePath = filepath;
-        this.userTxtFilename = userTxtFilename;
-        this.chatTxtFilename = chatTxtFilename;
-        this.messageTxtFilename = messageTxtFilename;
-
-        new File(txtFilePath).mkdirs();
-        loadUsers();
-        loadChats();
-        loadMessages();
+        restoreIdCounters();
     }
 
-    private File userFile() {
-        return new File(txtFilePath, userTxtFilename);
-    }
-
-    private File chatFile() {
-        return new File(txtFilePath, chatTxtFilename);
-    }
-
-    private File messageFile() {
-        return new File(txtFilePath, messageTxtFilename);
-    }
-
-    private void loadUsers() {
-        File file = userFile();
-        if (!file.exists()) return;
-        int highest = -1;
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.isBlank()) continue;
-                String[] parts = line.split("/");
-                String username = Packet.unsanitize(parts[0]);
-                String password = Packet.unsanitize(parts[1]);
-                String id = parts[2];
-                String firstName = Packet.unsanitize(parts[3]);
-                String lastName = Packet.unsanitize(parts[4]);
-                boolean isDisabled = Boolean.parseBoolean(parts[5]);
-                boolean isAdmin = Boolean.parseBoolean(parts[6]);
-
-                AbstractUser user = isAdmin
-                        ? new ITAdmin(username, password, id, firstName, lastName, isDisabled, isAdmin)
-                        : new User(username, password, id, firstName, lastName, isDisabled, isAdmin);
-                users.put(id, user);
-                highest = Math.max(highest, Integer.parseInt(id));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load users from " + file, e);
+    private void restoreIdCounters() {
+        int highestUserId = userRepository.maxId();
+        if (highestUserId >= 0) {
+            AbstractUser.restoreCount(highestUserId);
         }
-        if (highest >= 0) {
-            AbstractUser.restoreCount(highest);
+        int highestChatId = chatRepository.maxId();
+        if (highestChatId >= 0) {
+            Chat.restoreCount(highestChatId);
         }
-    }
-
-    private void loadChats() {
-        File file = chatFile();
-        if (!file.exists()) return;
-        int highest = -1;
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.isBlank()) continue;
-                String[] parts = line.split("/");
-                String id = parts[0];
-                String ownerId = parts[1];
-                String roomName = Packet.unsanitize(parts[2]);
-                boolean isPrivate = Boolean.parseBoolean(parts[3]);
-                List<AbstractUser> chatters = new ArrayList<>();
-                if (parts.length > 4 && !parts[4].isEmpty()) {
-                    for (String chatterId : parts[4].split(",")) {
-                        AbstractUser chatter = users.get(chatterId);
-                        if (chatter != null) chatters.add(chatter);
-                    }
-                }
-                AbstractUser owner = users.get(ownerId);
-                Chat chat = new Chat(owner, roomName, id, chatters, isPrivate);
-                chats.put(id, chat);
-                highest = Math.max(highest, Integer.parseInt(id));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load chats from " + file, e);
-        }
-        if (highest >= 0) {
-            Chat.restoreCount(highest);
-        }
-    }
-
-    private void loadMessages() {
-        File file = messageFile();
-        if (!file.exists()) return;
-        int highest = -1;
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.isBlank()) continue;
-                String[] parts = line.split("/");
-                String id = parts[0];
-                long createdAt = Long.parseLong(parts[1]);
-                String content = Packet.unsanitize(parts[2]);
-                String authorId = parts[3];
-                String chatId = parts[4];
-
-                AbstractUser author = users.get(authorId);
-                Chat chat = chats.get(chatId);
-                if (author == null || chat == null) continue;
-                Message message = new Message(id, createdAt, content, author, chat);
-                messages.put(id, message);
-                chat.addMessage(message);
-                highest = Math.max(highest, Integer.parseInt(id));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load messages from " + file, e);
-        }
-        if (highest >= 0) {
-            Message.restoreCount(highest);
-        }
-    }
-
-    private void rewriteUsersFile() {
-        synchronized (fileLock) {
-            try (PrintWriter writer = new PrintWriter(new FileWriter(userFile(), false))) {
-                for (AbstractUser user : users.values()) {
-                    writer.println(user.toString());
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to write " + userFile(), e);
-            }
-        }
-    }
-
-    private void rewriteChatsFile() {
-        synchronized (fileLock) {
-            try (PrintWriter writer = new PrintWriter(new FileWriter(chatFile(), false))) {
-                for (Chat chat : chats.values()) {
-                    writer.println(chat.toString());
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to write " + chatFile(), e);
-            }
-        }
-    }
-
-    private void rewriteMessagesFile() {
-        synchronized (fileLock) {
-            try (PrintWriter writer = new PrintWriter(new FileWriter(messageFile(), false))) {
-                for (Message message : messages.values()) {
-                    writer.println(message.toString());
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to write " + messageFile(), e);
-            }
+        int highestMessageId = messageRepository.maxId();
+        if (highestMessageId >= 0) {
+            Message.restoreCount(highestMessageId);
         }
     }
 
     public ArrayList<String> fetchAllUsers() {
         ArrayList<String> result = new ArrayList<>();
-        for (AbstractUser user : users.values()) {
+        for (AbstractUser user : userRepository.findAll()) {
             result.add(user.toStringClient());
         }
         return result;
@@ -202,7 +66,7 @@ public class DBManager {
     /** IT admins see every chat, membership aside, for moderation purposes. */
     public ArrayList<String> fetchAllChats(AbstractUser user) {
         ArrayList<String> result = new ArrayList<>();
-        for (Chat chat : chats.values()) {
+        for (Chat chat : chatRepository.findAll()) {
             if (user.isAdmin() || chat.getChatters().contains(user)) {
                 result.add(chat.toString());
             }
@@ -212,37 +76,24 @@ public class DBManager {
 
     /** IT admins see every message, membership aside, for moderation purposes. */
     public ArrayList<String> fetchAllMessages(AbstractUser user) {
-        ArrayList<String> result = new ArrayList<>();
-        for (Chat chat : chats.values()) {
-            if (user.isAdmin() || chat.getChatters().contains(user)) {
-                for (Message message : chat.getMessages()) {
-                    result.add(message.toString());
-                }
-            }
-        }
-        return result;
+        return new ArrayList<>(messageRepository.findVisibleToAsStrings(user));
     }
 
     public AbstractUser getUserById(String userId) {
-        return users.get(userId);
+        return userRepository.findById(userId);
     }
 
     public Chat getChatById(String chatId) {
-        return chats.get(chatId);
+        return chatRepository.findById(chatId);
     }
 
     public AbstractUser getUserByUsername(String username) {
-        for (AbstractUser user : users.values()) {
-            if (user.getUserName().equals(username)) {
-                return user;
-            }
-        }
-        return null;
+        return userRepository.findByUsername(username);
     }
 
     public AbstractUser checkLoginCredentials(String username, String password) {
         AbstractUser user = getUserByUsername(username);
-        if (user != null && user.getPassword().equals(password)) {
+        if (user != null && passwordEncoder.matches(password, user.getPassword())) {
             return user;
         }
         return null;
@@ -253,11 +104,11 @@ public class DBManager {
         if (getUserByUsername(username) != null) {
             throw new IllegalArgumentException("Username already taken: " + username);
         }
+        String hashedPassword = passwordEncoder.encode(password);
         AbstractUser user = isAdmin
-                ? new ITAdmin(username, password, firstname, lastname, isDisabled, isAdmin)
-                : new User(username, password, firstname, lastname, isDisabled, isAdmin);
-        users.put(user.getId(), user);
-        rewriteUsersFile();
+                ? new ITAdmin(username, hashedPassword, firstname, lastname, isDisabled, isAdmin)
+                : new User(username, hashedPassword, firstname, lastname, isDisabled, isAdmin);
+        userRepository.insert(user);
         return user;
     }
 
@@ -275,8 +126,7 @@ public class DBManager {
             }
         }
         Chat chat = new Chat(owner, roomName, chatters, isPrivate);
-        chats.put(chat.getId(), chat);
-        rewriteChatsFile();
+        chatRepository.insert(chat);
         return chat;
     }
 
@@ -290,9 +140,7 @@ public class DBManager {
             throw new SecurityException("User " + authorId + " is not a member of chat " + chatId);
         }
         Message message = new Message(content, author, chat);
-        messages.put(message.getId(), message);
-        chat.addMessage(message);
-        rewriteMessagesFile();
+        messageRepository.insert(message);
         return message;
     }
 
@@ -302,7 +150,7 @@ public class DBManager {
             throw new IllegalArgumentException("No such user: " + userId);
         }
         user.updateIsDisabled(isDisabled);
-        rewriteUsersFile();
+        userRepository.update(user);
         return user;
     }
 
@@ -328,9 +176,9 @@ public class DBManager {
         user.updateIsDisabled(isDisabled);
         user.setAdmin(isAdmin);
         if (newPassword != null && !newPassword.isEmpty()) {
-            user.setPassword(newPassword);
+            user.setPassword(passwordEncoder.encode(newPassword));
         }
-        rewriteUsersFile();
+        userRepository.update(user);
         return user;
     }
 
@@ -342,7 +190,7 @@ public class DBManager {
         }
         assertCanManageChat(chat, packetSenderUserId);
         chat.addChatter(userToAdd);
-        rewriteChatsFile();
+        chatRepository.addMember(chatId, userId);
         return chat;
     }
 
@@ -354,7 +202,7 @@ public class DBManager {
         }
         assertCanManageChat(chat, packetSenderUserId);
         chat.removeChatter(userToRemove);
-        rewriteChatsFile();
+        chatRepository.removeMember(chatId, userId);
         return chat;
     }
 
@@ -365,7 +213,7 @@ public class DBManager {
         }
         assertCanManageChat(chat, senderId);
         chat.setRoomName(newChatRoomName);
-        rewriteChatsFile();
+        chatRepository.rename(chatId, newChatRoomName);
         return chat;
     }
 

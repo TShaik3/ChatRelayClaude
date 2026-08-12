@@ -3,14 +3,12 @@ package server;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import packet.ActionType;
 import packet.Packet;
 import packet.Status;
 import support.TestConnection;
+import support.TestDatabase;
 import support.TestServerHarness;
-
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static support.TestConnection.args;
@@ -20,19 +18,19 @@ import static support.TestConnection.args;
  */
 class ErrorHandlingTest {
 
-    @TempDir
-    Path dbDir;
-
+    private TestDatabase testDb;
     private TestServerHarness harness;
 
     @BeforeEach
     void startServer() throws Exception {
-        harness = new TestServerHarness(dbDir);
+        testDb = TestDatabase.createSchema();
+        harness = new TestServerHarness(testDb.dataSource());
     }
 
     @AfterEach
     void stopServer() {
         harness.close();
+        testDb.close();
     }
 
     // ERR-1

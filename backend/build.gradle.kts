@@ -21,7 +21,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
-    runtimeOnly("org.postgresql:postgresql")
+    implementation("org.postgresql:postgresql")
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.testcontainers:postgresql:1.20.2")
@@ -35,4 +37,12 @@ tasks.withType<Test> {
 
 springBoot {
     mainClass.set("app.BackendApplication")
+}
+
+tasks.register<JavaExec>("migrateFlatFiles") {
+    group = "chatrelay"
+    description = "Imports legacy dbFiles/development flat files into Postgres (Migration Plan Phase 1)."
+    mainClass.set("server.support.MigrateFlatFilesToPostgres")
+    classpath = sourceSets["main"].runtimeClasspath
+    args = listOf(project.findProperty("flatFileDir")?.toString() ?: "../dbFiles/development")
 }
