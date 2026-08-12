@@ -1,0 +1,5 @@
+1/2/Project Alpha/false/2,3,5,7
+2/2/John & Ana/true/2,3
+3/5/Team Standup/false/5,2,3,6,7
+4/1/IT Admin Channel/false/1,4,7
+5/7/David & Lily/true/7,5

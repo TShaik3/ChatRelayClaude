@@ -1,0 +1,7 @@
+ariadmin/admin123/1/Ari/Fisher/false/true
+jsmith/pass123/2/John/Smith/false/false
+agarcia/pass123/3/Ana/Garcia/false/false
+modadmin/admin123/4/Maya/Odom/false/true
+lwong/pass123/5/Lily/Wong/false/false
+mtaylor/pass123/6/Mike/Taylor/true/false
+dkim/pass123/7/David/Kim/false/false
