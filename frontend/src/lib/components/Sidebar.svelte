@@ -1,6 +1,7 @@
 <script>
   import { currentUser, users, chats, selectedChatId } from "../stores.js";
   import { subscribeToChat } from "../ws.js";
+  import Avatar from "./Avatar.svelte";
 
   let { onNewChat, onNewUser, onEditUser, onLogout } = $props();
 
@@ -44,23 +45,36 @@
 
 <aside class="sidebar">
   <div class="header">
-    <div class="name-block">
-      <div class="name">{$currentUser.firstName} {$currentUser.lastName}</div>
-      {#if $currentUser.admin}<div class="badge">IT View</div>{/if}
+    <div class="identity">
+      <Avatar name={`${$currentUser.firstName} ${$currentUser.lastName}`} size={36} />
+      <div class="name-block">
+        <div class="name">{$currentUser.firstName} {$currentUser.lastName}</div>
+        {#if $currentUser.admin}<div class="badge">IT View</div>{/if}
+      </div>
     </div>
-    <button class="new-chat" onclick={onNewChat} title="New chat" aria-label="New chat">+</button>
+    <button class="new-chat" onclick={onNewChat} title="New chat" aria-label="New chat">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
   </div>
 
   <div class="scroll-area">
     <div class="section-label">Chats</div>
     <div class="list">
+      {#if sortedChats.length === 0}
+        <p class="empty-hint">No chats yet — start one with the + button above.</p>
+      {/if}
       {#each sortedChats as chat (chat.id)}
         <button class="card" class:selected={$selectedChatId === chat.id} onclick={() => selectChat(chat)}>
-          <div class="row">
-            <span class="title" class:moderating={!isMember(chat)}>{displayTitleFor(chat)}</span>
-            {#if !chat.isPrivate}<span class="tag">· Group</span>{/if}
+          <Avatar name={displayTitleFor(chat)} size={36} />
+          <div class="card-text">
+            <div class="row">
+              <span class="title" class:moderating={!isMember(chat)}>{displayTitleFor(chat)}</span>
+              {#if !chat.isPrivate}<span class="tag">· Group</span>{/if}
+            </div>
+            {#if otherMemberNames(chat)}<div class="subtitle">{otherMemberNames(chat)}</div>{/if}
           </div>
-          {#if otherMemberNames(chat)}<div class="subtitle">{otherMemberNames(chat)}</div>{/if}
         </button>
       {/each}
     </div>
@@ -70,12 +84,15 @@
       <div class="list">
         {#each $users as user (user.id)}
           <button class="card" onclick={() => onEditUser(user)}>
-            <span class="title">{user.firstName} {user.lastName}</span>
-            <span class="subtitle">
-              @{user.username}
-              {#if user.admin}· IT Admin{/if}
-              {#if user.disabled}<span class="disabled-tag">[disabled]</span>{/if}
-            </span>
+            <Avatar name={`${user.firstName} ${user.lastName}`} size={36} />
+            <div class="card-text">
+              <span class="title">{user.firstName} {user.lastName}</span>
+              <span class="subtitle">
+                @{user.username}
+                {#if user.admin}· IT Admin{/if}
+                {#if user.disabled}<span class="disabled-tag">[disabled]</span>{/if}
+              </span>
+            </div>
           </button>
         {/each}
       </div>
@@ -92,7 +109,7 @@
 
 <style>
   .sidebar {
-    width: 280px;
+    width: 300px;
     flex-shrink: 0;
     background: var(--sidebar-bg);
     border-right: 1px solid var(--card-border);
@@ -105,39 +122,67 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
+    padding: 14px;
     border-bottom: 1px solid var(--card-border);
+    background: var(--bg);
+  }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .name-block {
+    min-width: 0;
   }
 
   .name {
     font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .badge {
     color: var(--it-badge);
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
 
   .new-chat {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    background: var(--bg);
-    font-weight: 700;
-    font-size: 1rem;
-    line-height: 1;
+    border: none;
+    color: #fff;
+    background: var(--brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.15s ease, transform 0.05s ease;
+  }
+
+  .new-chat:hover {
+    background: var(--brand-hover);
+  }
+
+  .new-chat:active {
+    transform: translateY(1px);
   }
 
   .section-label {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     color: var(--muted-text);
-    padding: 10px 12px 4px;
+    padding: 16px 14px 6px;
   }
 
   .section-label.admin {
@@ -150,38 +195,59 @@
     overflow-y: auto;
   }
 
+  .empty-hint {
+    margin: 4px 14px 8px;
+    font-size: 0.85rem;
+    color: var(--muted-text);
+  }
+
   .list {
     display: flex;
     flex-direction: column;
+    padding: 0 6px;
   }
 
   .card {
     text-align: left;
     background: none;
     border: none;
-    border-bottom: 1px solid var(--card-border);
-    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    padding: 8px;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    transition: background-color 0.12s ease;
   }
 
   .card:hover {
-    background: rgba(0, 0, 0, 0.03);
+    background: rgba(15, 23, 42, 0.05);
   }
 
   .card.selected {
     background: var(--card-selected-bg);
   }
 
+  .card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
   .row {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    min-width: 0;
   }
 
   .title {
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .title.moderating {
@@ -192,6 +258,9 @@
   .subtitle {
     font-size: 0.8rem;
     color: var(--muted-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .disabled-tag {
@@ -202,7 +271,12 @@
     flex-shrink: 0;
     display: flex;
     gap: 6px;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-top: 1px solid var(--card-border);
+    background: var(--bg);
+  }
+
+  .toolbar .btn {
+    flex: 1;
   }
 </style>

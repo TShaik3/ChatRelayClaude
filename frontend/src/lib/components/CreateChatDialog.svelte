@@ -1,5 +1,6 @@
 <script>
   import Modal from "./Modal.svelte";
+  import Avatar from "./Avatar.svelte";
   import { currentUser, users, upsertChat } from "../stores.js";
   import { api } from "../api.js";
   import { subscribeToChat } from "../ws.js";
@@ -53,7 +54,8 @@
         {#each otherUsers as user (user.id)}
           <label class="checkbox-row">
             <input type="checkbox" checked={selectedUserIds.has(user.id)} onchange={() => toggle(user.id)} />
-            {user.firstName} {user.lastName} (@{user.username})
+            <Avatar name={`${user.firstName} ${user.lastName}`} size={26} />
+            <span>{user.firstName} {user.lastName} <span class="muted">(@{user.username})</span></span>
           </label>
         {/each}
       </div>
@@ -68,18 +70,31 @@
 
 <style>
   .member-list {
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
     border: 1px solid var(--card-border);
-    border-radius: 6px;
-    padding: 8px;
+    border-radius: var(--radius-md);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
   .checkbox-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 0;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    font-weight: 400;
+  }
+
+  .checkbox-row:hover {
+    background: var(--sidebar-bg);
+  }
+
+  .checkbox-row .muted {
+    color: var(--muted-text);
     font-weight: 400;
   }
 

@@ -45,7 +45,10 @@
 </script>
 
 {#if checkingSession}
-  <div class="loading">Loading…</div>
+  <div class="loading">
+    <div class="spinner" aria-hidden="true"></div>
+    <span>Loading…</span>
+  </div>
 {:else if $currentUser}
   <MainLayout onLogout={handleLogout} />
 {:else}
@@ -55,9 +58,27 @@
 <style>
   .loading {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 12px;
     height: 100vh;
     color: var(--muted-text);
+    font-size: 0.9rem;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--brand);
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>

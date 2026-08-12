@@ -2,6 +2,7 @@
   import { currentUser, users, chats, selectedChatId, messagesByChat, setMessagesForChat } from "../stores.js";
   import { api } from "../api.js";
   import RenameChatDialog from "./RenameChatDialog.svelte";
+  import Avatar from "./Avatar.svelte";
 
   let showRename = $state(false);
   let messageText = $state("");
@@ -42,6 +43,12 @@
 
   function memberFirstName(id) {
     return memberById(id)?.firstName ?? "unknown";
+  }
+
+  function memberFullName(id) {
+    const member = memberById(id);
+    if (!member) return "Unknown";
+    return `${member.firstName} ${member.lastName ?? ""}`.trim();
   }
 
   function displayTitle() {
@@ -95,12 +102,22 @@
 
 <section class="chat-area">
   {#if !selectedChat}
-    <div class="empty">Select a chat</div>
+    <div class="empty">
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path
+          d="M21 11.5a8.4 8.4 0 0 1-8.4 8.4c-1.3 0-2.6-.3-3.7-.9L3 21l1.9-5.9a8.3 8.3 0 0 1-.9-3.8A8.4 8.4 0 1 1 21 11.5z"
+        />
+      </svg>
+      <p>Select a chat</p>
+    </div>
   {:else}
     <div class="chat-header">
       <div class="title-block">
-        <span class="title" class:moderating={!isMember}>{displayTitle()}</span>
-        <span class="muted">• {allMemberNames()}</span>
+        <Avatar name={displayTitle()} size={38} />
+        <div class="title-text">
+          <span class="title" class:moderating={!isMember}>{displayTitle()}</span>
+          <span class="muted">{allMemberNames()}</span>
+        </div>
       </div>
       <div class="actions">
         <button class="btn" disabled={!canRename} onclick={() => (showRename = true)}>Rename</button>
@@ -112,15 +129,24 @@
 
     <div class="messages">
       {#if loadingMessages}
-        <p class="muted">Loading…</p>
+        <p class="muted center">Loading…</p>
+      {:else if messages.length === 0}
+        <p class="muted center">No messages yet — say hello.</p>
       {:else}
         {#each messages as message (message.id)}
-          <div class="message-card">
-            <div class="message-header">
-              <strong>{memberFirstName(message.authorId)}</strong>
-              <span class="muted">• {formatTime(message.createdAt)}</span>
+          {@const isOwn = message.authorId === $currentUser.id}
+          <div class="message-row" class:own={isOwn}>
+            {#if !isOwn}<Avatar name={memberFullName(message.authorId)} size={28} />{/if}
+            <div class="message-card" class:own={isOwn}>
+              <div class="message-header">
+                {#if !isOwn}
+                  <strong>{memberFirstName(message.authorId)}</strong>
+                  <span class="dot">·</span>
+                {/if}
+                <span class="time">{formatTime(message.createdAt)}</span>
+              </div>
+              <div class="message-content">{message.content}</div>
             </div>
-            <div class="message-content">{message.content}</div>
           </div>
         {/each}
       {/if}
@@ -148,78 +174,159 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    background: var(--bg);
   }
 
   .empty {
     flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     color: var(--muted-text);
+  }
+
+  .empty p {
+    margin: 0;
+    font-size: 0.95rem;
   }
 
   .chat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--card-border);
+    gap: 12px;
   }
 
-  .title-block .title {
+  .title-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .title-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .title-text .title {
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1.02rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .title-block .title.moderating {
+  .title-text .title.moderating {
     color: var(--it-badge);
+  }
+
+  .title-text .muted {
+    font-size: 0.82rem;
   }
 
   .muted {
     color: var(--muted-text);
   }
 
+  .muted.center {
+    text-align: center;
+    margin-top: 24px;
+  }
+
   .actions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
   }
 
   .messages {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
+    gap: 12px;
+    background: var(--sidebar-bg);
+  }
+
+  .message-row {
+    display: flex;
+    align-items: flex-end;
     gap: 8px;
   }
 
+  .message-row.own {
+    justify-content: flex-end;
+  }
+
   .message-card {
+    max-width: min(70%, 520px);
+    background: var(--bg);
     border: 1px solid var(--card-border);
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .message-card.own {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
   }
 
   .message-header {
-    margin-bottom: 4px;
-    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 3px;
+    font-size: 0.78rem;
+  }
+
+  .message-card.own .message-header {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .message-card:not(.own) .message-header .time,
+  .message-card:not(.own) .message-header .dot {
+    color: var(--muted-text);
   }
 
   .message-content {
     white-space: pre-wrap;
     word-break: break-word;
+    line-height: 1.4;
   }
 
   .input-bar {
     display: flex;
-    gap: 8px;
-    padding: 12px;
+    gap: 10px;
+    padding: 14px 20px;
     border-top: 1px solid var(--card-border);
+    background: var(--bg);
   }
 
   .input-bar input {
     flex: 1;
-    padding: 8px 10px;
+    padding: 10px 14px;
     border: 1px solid var(--card-border);
-    border-radius: 6px;
+    border-radius: 999px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .input-bar input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-soft);
+  }
+
+  .input-bar .btn-primary {
+    border-radius: 999px;
+    padding: 8px 20px;
   }
 </style>

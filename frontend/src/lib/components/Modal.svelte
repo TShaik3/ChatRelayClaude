@@ -23,33 +23,37 @@
     align-items: center;
     justify-content: center;
     z-index: 100;
+    padding: 16px;
   }
 
   .backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
     border: none;
     padding: 0;
     margin: 0;
+    animation: fade-in 0.15s ease;
   }
 
   .modal {
     position: relative;
     background: var(--bg);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     min-width: 320px;
     max-width: 90vw;
     max-height: 85vh;
     overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-lg);
+    animation: pop-in 0.18s ease;
   }
 
   .modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 18px 22px;
     border-bottom: 1px solid var(--card-border);
   }
 
@@ -59,14 +63,22 @@
   }
 
   .close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
     border: none;
     background: none;
     font-size: 1.3rem;
     line-height: 1;
     color: var(--muted-text);
+    transition: background-color 0.12s ease;
+  }
+
+  .close:hover {
+    background: var(--sidebar-bg);
   }
 
   .modal-body {
-    padding: 20px;
+    padding: 22px;
   }
 </style>

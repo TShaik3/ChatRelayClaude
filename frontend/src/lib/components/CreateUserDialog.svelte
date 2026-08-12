@@ -70,7 +70,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
   }
 
   .modal-actions {
