@@ -1,6 +1,6 @@
-# Migration Plan: ChatRelay → Full-Stack (Gradle + Spring Boot + PostgreSQL + Gson + Svelte)
+# Migration Plan: ChatRelay → Full-Stack (Gradle + Spring Boot + PostgreSQL + Jackson + Svelte)
 
-One upfront risk to flag: **Spring Boot defaults to Jackson everywhere** (REST bodies, and STOMP over WebSocket). Using Gson means explicitly swapping the `HttpMessageConverter` and hand-wiring WebSocket payload encoding — it's supported, just not the path of least resistance. Called out in Phase 3.
+Jackson is Spring Boot's default JSON library for both REST bodies and STOMP over WebSocket, so this removes the converter-wiring friction the Gson option would have introduced — `spring-boot-starter-web`/`spring-boot-starter-websocket` bring it in automatically, no extra dependency or configuration needed.
 
 ---
 
