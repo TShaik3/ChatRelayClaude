@@ -60,6 +60,8 @@ Full narrative detail, including every bug found and fixed along the way, is in
   deleting the legacy socket/Swing code, mapping every remaining call site (including the
   non-obvious ones, like `packet.Packet.sanitize` leaking into the domain model) to confirm what
   was actually safe to remove.
+- **[DeploymentPlan.md](DeploymentPlan.md)** — plan for running the app on a Raspberry Pi at home,
+  reachable from any of the user's own devices over Tailscale rather than the public internet.
 
 ---
 
