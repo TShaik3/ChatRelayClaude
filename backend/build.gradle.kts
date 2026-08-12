@@ -38,11 +38,3 @@ tasks.withType<Test> {
 springBoot {
     mainClass.set("app.BackendApplication")
 }
-
-tasks.register<JavaExec>("migrateFlatFiles") {
-    group = "chatrelay"
-    description = "Imports legacy dbFiles/development flat files into Postgres (Migration Plan Phase 1)."
-    mainClass.set("server.support.MigrateFlatFilesToPostgres")
-    classpath = sourceSets["main"].runtimeClasspath
-    args = listOf(project.findProperty("flatFileDir")?.toString() ?: "../dbFiles/development")
-}

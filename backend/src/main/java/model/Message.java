@@ -1,7 +1,5 @@
 package model;
 
-import packet.Packet;
-
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Message {
@@ -55,12 +53,6 @@ public class Message {
 
     public AbstractUser getSender() {
         return author;
-    }
-
-    /** Persistent/wire representation: id/createdAt/content/authorId/chatId */
-    @Override
-    public String toString() {
-        return id + "/" + createdAt + "/" + Packet.sanitize(content) + "/" + author.getId() + "/" + chat.getId();
     }
 
     /**

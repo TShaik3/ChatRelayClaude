@@ -41,24 +41,24 @@ class MessageModelTest {
 
     // MSG-3
     @Test
-    void contentWithSlashRoundTripsThroughToString() {
+    void contentWithSlashIsStoredExactly() {
         User author = user("author3");
         Chat chat = new Chat(author, "room", new ArrayList<>(List.of(author)), false);
         Message message = new Message("part1/part2/part3", author, chat);
 
-        String[] parts = message.toString().split("/");
-        assertEquals("part1/part2/part3", packet.Packet.unsanitize(parts[2]));
+        // No wire-format sanitization to worry about anymore -- content is a plain field, not a
+        // "/"-delimited string that needed slashes escaped (see the retired Packet class).
+        assertEquals("part1/part2/part3", message.getContent());
     }
 
     // MSG-4
     @Test
-    void toStringFormatMatchesSpec() {
+    void getSenderAndGetChatReturnWhatWasPassedToTheConstructor() {
         User author = user("author4");
         Chat chat = new Chat(author, "room", new ArrayList<>(List.of(author)), false);
         Message message = new Message("hello", author, chat);
 
-        String expected = message.getId() + "/" + message.getCreatedAt() + "/hello/"
-                + author.getId() + "/" + chat.getId();
-        assertEquals(expected, message.toString());
+        assertEquals(author, message.getSender());
+        assertEquals(chat, message.getChat());
     }
 }

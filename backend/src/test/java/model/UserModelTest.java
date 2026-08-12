@@ -83,22 +83,18 @@ class UserModelTest {
 
     // USR-8
     @Test
-    void toStringRoundTripsNamesContainingSlash() {
+    void fieldsContainingSlashAreStoredExactly() {
+        // No wire-format sanitization to worry about anymore -- these are plain fields, not
+        // "/"-delimited strings that needed slashes escaped (see the retired Packet class).
         User user = new User("slash/user", "pw/word", "First/Name", "Last/Name", false, false);
-        String[] parts = user.toString().split("/", -1);
-        // username/password/id/firstName/lastName/isDisabled/isAdmin, each field itself sanitized
-        assertEquals("slash/user", packet.Packet.unsanitize(parts[0]));
-        assertEquals("pw/word", packet.Packet.unsanitize(parts[1]));
-        assertEquals("First/Name", packet.Packet.unsanitize(parts[3]));
-        assertEquals("Last/Name", packet.Packet.unsanitize(parts[4]));
+        assertEquals("slash/user", user.getUserName());
+        assertEquals("pw/word", user.getPassword());
+        assertEquals("First/Name", user.getFirstName());
+        assertEquals("Last/Name", user.getLastName());
     }
 
-    // USR-9
-    @Test
-    void toStringClientNeverContainsPassword() {
-        User user = new User("dave", "super-secret-password", "Dave", "D", false, false);
-        assertFalse(user.toStringClient().contains("super-secret-password"));
-    }
+    // USR-9: password exposure is now dto.UserDto's job (it has no password field at all, a
+    // structural guarantee -- see dto.DtoMappingTest) rather than a runtime string check here.
 
     // USR-10
     @Test

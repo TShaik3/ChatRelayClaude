@@ -24,7 +24,6 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,7 +52,7 @@ class DBManagerTest {
     void constructingAgainstFreshSchemaStartsEmpty() {
         DBManager db = newManager();
 
-        assertTrue(db.fetchAllUsers().isEmpty());
+        assertTrue(db.listAllUsers().isEmpty());
     }
 
     // DB-2
@@ -96,18 +95,10 @@ class DBManagerTest {
         assertTrue(Integer.parseInt(afterRestart.getId()) > Integer.parseInt(original.getId()));
     }
 
-    // DB-6
-    @Test
-    void checkLoginCredentialsRejectsWrongPassword() {
-        DBManager db = newManager();
-        db.writeNewUser("dave", "correct-pw", "Dave", "D", false, false);
-
-        assertNull(db.checkLoginCredentials("dave", "wrong-pw"));
-        assertNotEquals(null, db.checkLoginCredentials("dave", "correct-pw"));
-    }
-
     // Passwords must never be stored in plaintext -- this pins the BCrypt hashing behavior added
-    // when the flat-file store (which persisted raw passwords) was replaced by Postgres.
+    // when the flat-file store (which persisted raw passwords) was replaced by Postgres. Login
+    // itself now goes through Spring Security's DaoAuthenticationProvider (see AuthControllerTest),
+    // not a DBManager method, so this only needs to prove the hash, not a login round-trip.
     @Test
     void writeNewUserStoresAHashNotThePlaintextPassword() {
         DBManager db = newManager();
@@ -115,30 +106,6 @@ class DBManagerTest {
 
         assertNotEquals("super-secret", user.getPassword());
         assertTrue(PASSWORD_ENCODER.matches("super-secret", user.getPassword()));
-    }
-
-    // DB-7
-    @Test
-    void checkLoginCredentialsDoesNotItselfRejectDisabledUsers() {
-        // Disabled-account rejection is enforced by the server layer (see ServerProtocolTest),
-        // not by DBManager itself -- pin down that boundary explicitly.
-        DBManager db = newManager();
-        AbstractUser user = db.writeNewUser("eve", "pw", "Eve", "E", true, false);
-
-        AbstractUser result = db.checkLoginCredentials("eve", "pw");
-        assertEquals(user.getId(), result.getId());
-        assertTrue(result.isDisabled());
-    }
-
-    // DB-8
-    @Test
-    void updateUserIsDisabledPersistsAcrossReload() {
-        DBManager db = newManager();
-        AbstractUser user = db.writeNewUser("frank", "pw", "Frank", "F", false, false);
-        db.updateUserIsDisabled(user.getId(), true);
-
-        DBManager reloaded = newManager();
-        assertTrue(reloaded.getUserById(user.getId()).isDisabled());
     }
 
     @Test
@@ -161,6 +128,7 @@ class DBManagerTest {
         assertEquals("renamed", fromDb.getUserName());
         assertTrue(PASSWORD_ENCODER.matches("newpw", fromDb.getPassword()));
         assertTrue(fromDb.isAdmin());
+        assertTrue(fromDb.isDisabled(), "isDisabled must persist across reload same as every other field");
     }
 
     @Test
@@ -217,30 +185,38 @@ class DBManagerTest {
 
     // DB-11
     @Test
-    void writeNewMessageAppearsInFetchAllMessages() {
+    void writeNewMessageAppearsInFetchMessagesForChat() {
         DBManager db = newManager();
         AbstractUser owner = db.writeNewUser("gina", "pw", "Gina", "G", false, false);
         Chat chat = db.writeNewChat(owner.getId(), "room", new ArrayList<>(), false);
 
         Message message = db.writeNewMessage("hello", owner.getId(), chat.getId());
 
-        List<String> serialized = db.fetchAllMessages(owner);
-        assertTrue(serialized.contains(message.toString()));
+        assertTrue(db.fetchMessagesForChat(owner, chat.getId()).contains(message));
     }
 
     // DB-12
     @Test
-    void fetchAllChatsAndMessagesAreEmptyForUserInNoChats() {
+    void listChatsVisibleToIsEmptyForUserInNoChats() {
         DBManager db = newManager();
         AbstractUser lonely = db.writeNewUser("lonely", "pw", "Lone", "Ly", false, false);
 
-        assertTrue(db.fetchAllChats(lonely).isEmpty());
-        assertTrue(db.fetchAllMessages(lonely).isEmpty());
+        assertTrue(db.listChatsVisibleTo(lonely).isEmpty());
+    }
+
+    @Test
+    void fetchMessagesForChatRejectsNonMemberNonAdmin() {
+        DBManager db = newManager();
+        AbstractUser lonely = db.writeNewUser("lonely2", "pw", "Lone", "Ly", false, false);
+        AbstractUser owner = db.writeNewUser("chatowner", "pw", "Own", "Er", false, false);
+        Chat chat = db.writeNewChat(owner.getId(), "room", new ArrayList<>(), false);
+
+        assertThrows(SecurityException.class, () -> db.fetchMessagesForChat(lonely, chat.getId()));
     }
 
     // DB-13
     @Test
-    void fetchAllChatsExcludesChatsUserIsNotIn() {
+    void listChatsVisibleToExcludesChatsUserIsNotIn() {
         DBManager db = newManager();
         AbstractUser userA = db.writeNewUser("userA", "pw", "A", "A", false, false);
         AbstractUser userB = db.writeNewUser("userB", "pw", "B", "B", false, false);
@@ -249,8 +225,7 @@ class DBManagerTest {
         Chat privateChat = db.writeNewChat(userB.getId(), "b-and-c",
                 new ArrayList<>(List.of(userC.getId())), true);
 
-        List<String> chatsForA = db.fetchAllChats(userA);
-        assertFalse(chatsForA.contains(privateChat.toString()));
+        assertFalse(db.listChatsVisibleTo(userA).contains(privateChat));
     }
 
     // DB-13b: IT admins moderate, so membership does not gate their visibility.
@@ -265,15 +240,13 @@ class DBManagerTest {
                 new ArrayList<>(List.of(userC.getId())), true);
         Message message = db.writeNewMessage("secret between B and C", userB.getId(), privateChat.getId());
 
-        List<String> chatsForAdmin = db.fetchAllChats(admin);
-        List<String> messagesForAdmin = db.fetchAllMessages(admin);
-
-        assertTrue(chatsForAdmin.contains(privateChat.toString()), "admin must see a chat they're not a member of");
-        assertTrue(messagesForAdmin.contains(message.toString()), "admin must see messages from a chat they're not a member of");
+        assertTrue(db.listChatsVisibleTo(admin).contains(privateChat), "admin must see a chat they're not a member of");
+        assertTrue(db.fetchMessagesForChat(admin, privateChat.getId()).contains(message),
+                "admin must see messages from a chat they're not a member of");
 
         // a non-admin, non-member user must still be excluded, unchanged from DB-13.
         AbstractUser userD = db.writeNewUser("userD", "pw", "D", "D", false, false);
-        assertFalse(db.fetchAllChats(userD).contains(privateChat.toString()));
+        assertFalse(db.listChatsVisibleTo(userD).contains(privateChat));
     }
 
     // DB-14

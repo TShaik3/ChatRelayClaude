@@ -55,36 +55,12 @@ public class DBManager {
         }
     }
 
-    public ArrayList<String> fetchAllUsers() {
-        ArrayList<String> result = new ArrayList<>();
-        for (AbstractUser user : userRepository.findAll()) {
-            result.add(user.toStringClient());
-        }
-        return result;
-    }
-
-    /** IT admins see every chat, membership aside, for moderation purposes. */
-    public ArrayList<String> fetchAllChats(AbstractUser user) {
-        ArrayList<String> result = new ArrayList<>();
-        for (Chat chat : chatRepository.findAll()) {
-            if (user.isAdmin() || chat.getChatters().contains(user)) {
-                result.add(chat.toString());
-            }
-        }
-        return result;
-    }
-
-    /** IT admins see every message, membership aside, for moderation purposes. */
-    public ArrayList<String> fetchAllMessages(AbstractUser user) {
-        return new ArrayList<>(messageRepository.findVisibleToAsStrings(user));
-    }
-
-    /** Domain-object equivalent of fetchAllUsers(), for the REST layer to map into DTOs itself. */
+    /** Domain-object equivalent of the old socket protocol's GET_ALL_USERS, for the REST layer to map into DTOs itself. */
     public List<AbstractUser> listAllUsers() {
         return userRepository.findAll();
     }
 
-    /** Domain-object equivalent of fetchAllChats(user), for the REST layer to map into DTOs itself. */
+    /** IT admins see every chat, membership aside, for moderation purposes. */
     public List<Chat> listChatsVisibleTo(AbstractUser user) {
         List<Chat> result = new ArrayList<>();
         for (Chat chat : chatRepository.findAll()) {
@@ -96,9 +72,9 @@ public class DBManager {
     }
 
     /**
-     * Messages for a single chat (not every chat the user can see, unlike fetchAllMessages) --
-     * the REST layer's GET /api/chats/{id}/messages loads one chat's history at a time rather
-     * than dumping everything up front the way the socket protocol's login flow used to.
+     * Messages for a single chat, not every chat the user can see -- the REST layer's
+     * GET /api/chats/{id}/messages loads one chat's history at a time rather than dumping
+     * everything up front the way the old socket protocol's login flow used to.
      */
     public List<Message> fetchMessagesForChat(AbstractUser user, String chatId) {
         Chat chat = getChatById(chatId);
@@ -121,14 +97,6 @@ public class DBManager {
 
     public AbstractUser getUserByUsername(String username) {
         return userRepository.findByUsername(username);
-    }
-
-    public AbstractUser checkLoginCredentials(String username, String password) {
-        AbstractUser user = getUserByUsername(username);
-        if (user != null && passwordEncoder.matches(password, user.getPassword())) {
-            return user;
-        }
-        return null;
     }
 
     public AbstractUser writeNewUser(String username, String password, String firstname, String lastname,
@@ -176,16 +144,6 @@ public class DBManager {
         return message;
     }
 
-    public AbstractUser updateUserIsDisabled(String userId, boolean isDisabled) {
-        AbstractUser user = getUserById(userId);
-        if (user == null) {
-            throw new IllegalArgumentException("No such user: " + userId);
-        }
-        user.updateIsDisabled(isDisabled);
-        userRepository.update(user);
-        return user;
-    }
-
     /**
      * Full profile edit for the IT-admin "edit user" screen: username, name, disabled/admin
      * flags, and optionally the password. Pass null or empty for newPassword to leave it as-is.
@@ -214,25 +172,25 @@ public class DBManager {
         return user;
     }
 
-    public Chat addUserToChat(String userId, String chatId, String packetSenderUserId) {
+    public Chat addUserToChat(String userId, String chatId, String requesterId) {
         Chat chat = getChatById(chatId);
         AbstractUser userToAdd = getUserById(userId);
         if (chat == null || userToAdd == null) {
             throw new IllegalArgumentException("Invalid user or chat");
         }
-        assertCanManageChat(chat, packetSenderUserId);
+        assertCanManageChat(chat, requesterId);
         chat.addChatter(userToAdd);
         chatRepository.addMember(chatId, userId);
         return chat;
     }
 
-    public Chat removeUserFromChat(String userId, String chatId, String packetSenderUserId) {
+    public Chat removeUserFromChat(String userId, String chatId, String requesterId) {
         Chat chat = getChatById(chatId);
         AbstractUser userToRemove = getUserById(userId);
         if (chat == null || userToRemove == null) {
             throw new IllegalArgumentException("Invalid user or chat");
         }
-        assertCanManageChat(chat, packetSenderUserId);
+        assertCanManageChat(chat, requesterId);
         chat.removeChatter(userToRemove);
         chatRepository.removeMember(chatId, userId);
         return chat;

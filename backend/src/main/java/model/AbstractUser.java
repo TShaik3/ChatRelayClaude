@@ -1,15 +1,13 @@
 package model;
 
-import packet.Packet;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractUser {
 
-    // Plain int + count++ raced under concurrent user creation (two ClientHandler threads could
-    // read the same value and mint duplicate ids) -- must be atomic.
+    // Plain int + count++ raced under concurrent user creation (two request threads could read
+    // the same value and mint duplicate ids) -- must be atomic.
     private static final AtomicInteger count = new AtomicInteger(0);
 
     private final String id;
@@ -137,19 +135,6 @@ public abstract class AbstractUser {
     /** Advances the shared id counter so ids loaded from storage are never reused. */
     public static void restoreCount(int highestSeen) {
         count.accumulateAndGet(highestSeen + 1, Math::max);
-    }
-
-    /** Full representation for persistent storage: username/password/id/firstName/lastName/isDisabled/isAdmin */
-    @Override
-    public String toString() {
-        return Packet.sanitize(username) + "/" + Packet.sanitize(password) + "/" + id + "/"
-                + Packet.sanitize(firstName) + "/" + Packet.sanitize(lastName) + "/" + isDisabled + "/" + isAdmin;
-    }
-
-    /** Representation safe to send to clients (no password): id/username/firstName/lastName/isDisabled/isAdmin */
-    public String toStringClient() {
-        return id + "/" + Packet.sanitize(username) + "/" + Packet.sanitize(firstName) + "/"
-                + Packet.sanitize(lastName) + "/" + isDisabled + "/" + isAdmin;
     }
 
     /**

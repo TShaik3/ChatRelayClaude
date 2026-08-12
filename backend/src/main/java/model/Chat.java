@@ -1,7 +1,5 @@
 package model;
 
-import packet.Packet;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -102,19 +100,6 @@ public class Chat {
 
     public boolean isPrivate() {
         return isPrivate;
-    }
-
-    /** Persistent/wire representation: id/ownerId/roomName/isPrivate/userId1,userId2,userId3 */
-    @Override
-    public String toString() {
-        StringBuilder chatterIds = new StringBuilder();
-        for (int i = 0; i < chatters.size(); i++) {
-            chatterIds.append(chatters.get(i).getId());
-            if (i < chatters.size() - 1) {
-                chatterIds.append(",");
-            }
-        }
-        return id + "/" + owner.getId() + "/" + Packet.sanitize(roomName) + "/" + isPrivate + "/" + chatterIds;
     }
 
     /**

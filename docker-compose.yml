@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: chatrelay
+      POSTGRES_USER: chatrelay
+      POSTGRES_PASSWORD: chatrelay
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatrelay"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CHATRELAY_DB_URL: jdbc:postgresql://postgres:5432/chatrelay
+      CHATRELAY_DB_USER: chatrelay
+      CHATRELAY_DB_PASSWORD: chatrelay
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

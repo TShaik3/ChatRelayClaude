@@ -13,7 +13,7 @@ import java.util.UUID;
  * A throwaway Postgres schema, migrated with the app's real Flyway scripts, standing in for the
  * old "@TempDir Path dbDir" isolation the flat-file DBManager tests used to get for free: each
  * call to createSchema() is a fresh, empty logical database within the shared chatrelay_test
- * database, dropped again on close(). Point multiple DBManager/Server instances at the same
+ * database, dropped again on close(). Point multiple DBManager instances at the same
  * TestDatabase's dataSource() to simulate a process restart against un-wiped data.
  */
 public class TestDatabase implements AutoCloseable {

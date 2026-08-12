@@ -19,6 +19,12 @@ import org.springframework.security.web.SecurityFilterChain;
  * on it. CSRF is disabled -- acceptable for a same-origin SPA talking to its own backend (Phase
  * 4's Vite dev proxy and Phase 5's single-deployable both keep frontend and backend same-origin)
  * but would need revisiting behind a public multi-origin deployment.
+ *
+ * The static frontend (index.html, /assets/**) must be reachable by a browser that hasn't logged
+ * in yet -- otherwise it can never load the login screen's own JS in the first place. This gap
+ * was invisible through Phase 4, since the Vite dev server always served those files itself on a
+ * separate origin without ever going through this filter chain; it only surfaced once Phase 5
+ * asked Spring Boot to serve the built frontend directly.
  */
 @Configuration
 @EnableWebSecurity
@@ -50,6 +56,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
         return http.build();

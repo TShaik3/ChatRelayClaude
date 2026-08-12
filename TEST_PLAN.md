@@ -1,5 +1,15 @@
 # ChatRelay — Test Plan
 
+> **Historical document, superseded.** This plan covers the original pure-Java socket/Swing
+> architecture (`Packet`/`Server`/`ClientHandler`/`Client`/`GUI`, flat-file `DBManager`), all of
+> which was retired in the Migration Plan's Phase 5 cutover. The current backend (REST +
+> WebSocket over Postgres) and frontend (Svelte) are covered by the automated test suites under
+> `backend/src/test/java` (see `api/*Test.java`, `server/DBManagerTest.java`, `model/*Test.java`,
+> `dto/DtoMappingTest.java`) — see `MigrationPlan.md` for what each phase actually verified. Kept
+> here for historical reference rather than rewritten line-by-line; a fresh test plan for the
+> current architecture would be a reasonable follow-up but is a distinct piece of work from the
+> cutover itself.
+
 ## 1. Objectives & Scope
 
 Validate that the client/server chat application behaves correctly across:

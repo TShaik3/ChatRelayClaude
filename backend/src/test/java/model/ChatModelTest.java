@@ -83,37 +83,32 @@ class ChatModelTest {
 
     // CHT-6
     @Test
-    void roomNameWithSlashRoundTripsThroughToString() {
+    void roomNameWithSlashIsStoredExactly() {
         User owner = user("owner6");
         Chat chat = new Chat(owner, "room/with/slashes", new ArrayList<>(), false);
 
-        String[] parts = chat.toString().split("/", -1);
-        // id/ownerId/roomName/isPrivate/chatterIds ; roomName itself is sanitized
-        assertEquals("room/with/slashes", packet.Packet.unsanitize(parts[2]));
+        // No wire-format sanitization to worry about anymore -- the room name is a plain field,
+        // not a "/"-delimited string that needed slashes escaped (see the retired Packet class).
+        assertEquals("room/with/slashes", chat.getRoomName());
     }
 
     // CHT-7
     @Test
-    void toStringFormatMatchesSpec() {
+    void getChattersIdsIncludesEveryChatter() {
         User owner = user("owner7");
         User other = user("other7");
         Chat chat = new Chat(owner, "general", new ArrayList<>(List.of(owner, other)), false);
 
-        String expectedPrefix = chat.getId() + "/" + owner.getId() + "/general/false/";
-        assertTrue(chat.toString().startsWith(expectedPrefix));
-        assertTrue(chat.toString().contains(owner.getId()));
-        assertTrue(chat.toString().contains(other.getId()));
+        assertTrue(chat.getChattersIds().contains(owner.getId()));
+        assertTrue(chat.getChattersIds().contains(other.getId()));
     }
 
     // CHT-8
     @Test
-    void toStringWithOwnerOnlyHasNoTrailingComma() {
+    void getChattersIdsWithOwnerOnlyHasExactlyOneEntry() {
         User owner = user("owner8");
         Chat chat = new Chat(owner, "solo", new ArrayList<>(List.of(owner)), false);
 
-        String[] parts = chat.toString().split("/");
-        String chatterField = parts[4];
-        assertEquals(owner.getId(), chatterField);
-        assertFalse(chatterField.contains(","));
+        assertEquals(List.of(owner.getId()), chat.getChattersIds());
     }
 }
