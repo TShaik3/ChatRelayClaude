@@ -4,14 +4,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Placeholder Spring Boot entry point for the migration in progress -- the
- * actual socket server (ServerMain) and Swing client (ClientMain) still run
- * independently until the REST/WebSocket layer replaces them (Migration
- * Plan Phase 3). application.properties now points at the real chatrelay_dev
- * Postgres database, so Spring Boot's default DataSource/Flyway
- * auto-configuration applies unmodified.
+ * Spring Boot entry point for the new REST/WebSocket API (Migration Plan Phase 3), living in the
+ * sibling `api` package -- scanned explicitly since it isn't a sub-package of `app` and Spring
+ * Boot's default component scan only covers the annotated class's own package tree. The socket
+ * server (ServerMain) and Swing client (ClientMain) still run independently against the same
+ * Postgres database; both are retired only at cutover (Phase 5), once the Svelte frontend
+ * (Phase 4) can replace them.
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"app", "api"})
 public class BackendApplication {
     public static void main(String[] args) {
         SpringApplication.run(BackendApplication.class, args);

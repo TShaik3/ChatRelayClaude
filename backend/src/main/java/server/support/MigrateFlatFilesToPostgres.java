@@ -48,7 +48,7 @@ public final class MigrateFlatFilesToPostgres {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         UserRepository userRepository = new UserRepository(jdbc);
         ChatRepository chatRepository = new ChatRepository(jdbc, userRepository);
-        MessageRepository messageRepository = new MessageRepository(jdbc);
+        MessageRepository messageRepository = new MessageRepository(jdbc, userRepository);
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
         Map<String, AbstractUser> usersById = migrateUsers(dir.resolve("Users.txt"), userRepository, passwordEncoder);

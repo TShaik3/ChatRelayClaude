@@ -35,7 +35,7 @@ public class DBManager {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         this.userRepository = new UserRepository(jdbc);
         this.chatRepository = new ChatRepository(jdbc, userRepository);
-        this.messageRepository = new MessageRepository(jdbc);
+        this.messageRepository = new MessageRepository(jdbc, userRepository);
 
         restoreIdCounters();
     }
@@ -77,6 +77,38 @@ public class DBManager {
     /** IT admins see every message, membership aside, for moderation purposes. */
     public ArrayList<String> fetchAllMessages(AbstractUser user) {
         return new ArrayList<>(messageRepository.findVisibleToAsStrings(user));
+    }
+
+    /** Domain-object equivalent of fetchAllUsers(), for the REST layer to map into DTOs itself. */
+    public List<AbstractUser> listAllUsers() {
+        return userRepository.findAll();
+    }
+
+    /** Domain-object equivalent of fetchAllChats(user), for the REST layer to map into DTOs itself. */
+    public List<Chat> listChatsVisibleTo(AbstractUser user) {
+        List<Chat> result = new ArrayList<>();
+        for (Chat chat : chatRepository.findAll()) {
+            if (user.isAdmin() || chat.getChatters().contains(user)) {
+                result.add(chat);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Messages for a single chat (not every chat the user can see, unlike fetchAllMessages) --
+     * the REST layer's GET /api/chats/{id}/messages loads one chat's history at a time rather
+     * than dumping everything up front the way the socket protocol's login flow used to.
+     */
+    public List<Message> fetchMessagesForChat(AbstractUser user, String chatId) {
+        Chat chat = getChatById(chatId);
+        if (chat == null) {
+            throw new IllegalArgumentException("No such chat: " + chatId);
+        }
+        if (!user.isAdmin() && !chat.getChatters().contains(user)) {
+            throw new SecurityException("User " + user.getId() + " may not view chat " + chatId);
+        }
+        return messageRepository.findByChatId(chat);
     }
 
     public AbstractUser getUserById(String userId) {

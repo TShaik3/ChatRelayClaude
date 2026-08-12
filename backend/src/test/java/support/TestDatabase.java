@@ -25,17 +25,20 @@ public class TestDatabase implements AutoCloseable {
 
     private final String schemaName;
     private final DataSource dataSource;
+    private final String jdbcUrl;
 
-    private TestDatabase(String schemaName, DataSource dataSource) {
+    private TestDatabase(String schemaName, DataSource dataSource, String jdbcUrl) {
         this.schemaName = schemaName;
         this.dataSource = dataSource;
+        this.jdbcUrl = jdbcUrl;
     }
 
     public static TestDatabase createSchema() {
         String schemaName = "test_" + UUID.randomUUID().toString().replace("-", "");
+        String url = BASE_URL + "?currentSchema=" + schemaName;
 
         PGSimpleDataSource ds = new PGSimpleDataSource();
-        ds.setUrl(BASE_URL + "?currentSchema=" + schemaName);
+        ds.setUrl(url);
         ds.setUser(USER);
         ds.setPassword(PASSWORD);
 
@@ -45,11 +48,24 @@ public class TestDatabase implements AutoCloseable {
                 .load()
                 .migrate();
 
-        return new TestDatabase(schemaName, ds);
+        return new TestDatabase(schemaName, ds, url);
     }
 
     public DataSource dataSource() {
         return dataSource;
+    }
+
+    /** For @DynamicPropertySource in @SpringBootTest classes, which need raw connection strings. */
+    public String jdbcUrl() {
+        return jdbcUrl;
+    }
+
+    public String username() {
+        return USER;
+    }
+
+    public String password() {
+        return PASSWORD;
     }
 
     /** Direct row count for tests that need to assert persistence without going through DBManager. */
