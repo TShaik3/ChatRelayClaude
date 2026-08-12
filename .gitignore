@@ -1,0 +1,14 @@
+# Gradle
+.gradle/
+backend/build/
+
+# Legacy javac build output (superseded by Gradle)
+out/
+test-out/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
