@@ -52,57 +52,67 @@
         {#if $currentUser.admin}<div class="badge">IT View</div>{/if}
       </div>
     </div>
-    <button class="new-chat" onclick={onNewChat} title="New chat" aria-label="New chat">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
   </div>
 
-  <div class="scroll-area">
-    <div class="section-label">Chats</div>
-    <div class="list">
-      {#if sortedChats.length === 0}
-        <p class="empty-hint">No chats yet — start one with the + button above.</p>
-      {/if}
-      {#each sortedChats as chat (chat.id)}
-        <button class="card" class:selected={$selectedChatId === chat.id} onclick={() => selectChat(chat)}>
-          <Avatar name={displayTitleFor(chat)} size={36} />
-          <div class="card-text">
-            <div class="row">
-              <span class="title" class:moderating={!isMember(chat)}>{displayTitleFor(chat)}</span>
-              {#if !chat.isPrivate}<span class="tag">· Group</span>{/if}
-            </div>
-            {#if otherMemberNames(chat)}<div class="subtitle">{otherMemberNames(chat)}</div>{/if}
-          </div>
+  <div class="panels">
+    <div class="panel">
+      <div class="section-label-row">
+        <span class="section-label">Chats</span>
+        <button class="icon-btn" onclick={onNewChat} title="New chat" aria-label="New chat">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
         </button>
-      {/each}
-    </div>
-
-    {#if $currentUser.admin}
-      <div class="section-label admin">All Users</div>
+      </div>
       <div class="list">
-        {#each $users as user (user.id)}
-          <button class="card" onclick={() => onEditUser(user)}>
-            <Avatar name={`${user.firstName} ${user.lastName}`} size={36} />
+        {#if sortedChats.length === 0}
+          <p class="empty-hint">No chats yet — start one with the + button.</p>
+        {/if}
+        {#each sortedChats as chat (chat.id)}
+          <button class="card" class:selected={$selectedChatId === chat.id} onclick={() => selectChat(chat)}>
+            <Avatar name={displayTitleFor(chat)} size={36} />
             <div class="card-text">
-              <span class="title">{user.firstName} {user.lastName}</span>
-              <span class="subtitle">
-                @{user.username}
-                {#if user.admin}· IT Admin{/if}
-                {#if user.disabled}<span class="disabled-tag">[disabled]</span>{/if}
-              </span>
+              <div class="row">
+                <span class="title" class:moderating={!isMember(chat)}>{displayTitleFor(chat)}</span>
+                {#if !chat.isPrivate}<span class="tag">· Group</span>{/if}
+              </div>
+              {#if otherMemberNames(chat)}<div class="subtitle">{otherMemberNames(chat)}</div>{/if}
             </div>
           </button>
         {/each}
+      </div>
+    </div>
+
+    {#if $currentUser.admin}
+      <div class="panel">
+        <div class="section-label-row">
+          <span class="section-label admin">All Users</span>
+          <button class="icon-btn admin" onclick={onNewUser} title="New user" aria-label="New user">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        </div>
+        <div class="list">
+          {#each $users as user (user.id)}
+            <button class="card" onclick={() => onEditUser(user)}>
+              <Avatar name={`${user.firstName} ${user.lastName}`} size={36} />
+              <div class="card-text">
+                <span class="title">{user.firstName} {user.lastName}</span>
+                <span class="subtitle">
+                  @{user.username}
+                  {#if user.admin}· IT Admin{/if}
+                  {#if user.disabled}<span class="disabled-tag">[disabled]</span>{/if}
+                </span>
+              </div>
+            </button>
+          {/each}
+        </div>
       </div>
     {/if}
   </div>
 
   <div class="toolbar">
-    {#if $currentUser.admin}
-      <button class="btn" onclick={onNewUser}>Create User</button>
-    {/if}
     <button class="btn" onclick={onLogout}>Log out</button>
   </div>
 </aside>
@@ -153,27 +163,13 @@
     letter-spacing: 0.03em;
   }
 
-  .new-chat {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: none;
-    color: #fff;
-    background: var(--brand);
+  .section-label-row {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    box-shadow: var(--shadow-sm);
-    transition: background-color 0.15s ease, transform 0.05s ease;
-  }
-
-  .new-chat:hover {
-    background: var(--brand-hover);
-  }
-
-  .new-chat:active {
-    transform: translateY(1px);
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 10px 6px 14px;
   }
 
   .section-label {
@@ -182,17 +178,58 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--muted-text);
-    padding: 16px 14px 6px;
   }
 
   .section-label.admin {
     color: var(--it-badge);
   }
 
-  .scroll-area {
+  .icon-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    color: #fff;
+    background: var(--brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, transform 0.05s ease;
+  }
+
+  .icon-btn:hover {
+    background: var(--brand-hover);
+  }
+
+  .icon-btn:active {
+    transform: translateY(1px);
+  }
+
+  .icon-btn.admin {
+    background: var(--it-badge);
+  }
+
+  .icon-btn.admin:hover {
+    background: #b91c1c;
+  }
+
+  .panels {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel + .panel {
+    border-top: 1px solid var(--card-border);
   }
 
   .empty-hint {
@@ -202,9 +239,12 @@
   }
 
   .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    padding: 0 6px;
+    padding: 0 6px 6px;
   }
 
   .card {
