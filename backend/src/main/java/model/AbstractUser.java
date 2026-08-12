@@ -94,14 +94,6 @@ public abstract class AbstractUser {
         return chats;
     }
 
-    public ArrayList<String> getAllChatIds() {
-        ArrayList<String> ids = new ArrayList<>();
-        for (Chat chat : chats) {
-            ids.add(chat.getId());
-        }
-        return ids;
-    }
-
     public boolean isAdmin() {
         return isAdmin;
     }

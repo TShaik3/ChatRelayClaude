@@ -21,8 +21,10 @@ Jackson is Spring Boot's default JSON library for both REST bodies and STOMP ove
 - One-off migration script (`MigrateFlatFilesToPostgres`, run once) to parse `Users.txt`/`Chats.txt`/`Messages.txt` and insert into Postgres — reuse the existing `Packet.unsanitize` parsing logic from `DBManager.loadUsers/loadChats/loadMessages` since the delimiter format doesn't change until this step runs. **Hash plaintext passwords with BCrypt during this import**, since they're stored in cleartext today.
 
 ## Phase 2 — Domain model cleanup
-- Strip `Serializable`, `toString()`/`toStringClient()` wire-format methods from `AbstractUser`/`User`/`ITAdmin`/`Chat`/`Message` — those existed only to serialize over the raw socket protocol.
-- Introduce API-facing DTOs (`UserDto`, `ChatDto`, `MessageDto`) that Jackson serializes directly; keep domain objects as persistence-layer models mapped by the JDBC repositories.
+- Correction from the original plan: only `Packet` ever implemented `Serializable` — `AbstractUser`/`User`/`ITAdmin`/`Chat`/`Message` never did, so there was nothing to strip there.
+- `toString()`/`toStringClient()` are still the live wire format for the current socket protocol (`Server.java`, `DBManager.java`) and are directly asserted on by ~15 existing tests (including a security-relevant one confirming `toStringClient()` never leaks the password hash). Stripping them now would mean rewriting those tests twice — once now, once again in Phase 3 when the socket layer they exist for is deleted. **Deferred to Phase 3**, bundled with deleting `Server`/`ClientHandler`'s use of them.
+- Added `UserDto`, `ChatDto`, `MessageDto` (Jackson-serializable records) with `from(...)` mappers off the domain models, plus mapping/round-trip tests — ready for Phase 3's controllers to consume directly. Domain objects remain the persistence-layer models mapped by the JDBC repositories.
+- Removed `AbstractUser.getAllChatIds()` — genuinely dead code, zero call sites anywhere in the codebase.
 
 ## Phase 3 — Backend API & realtime
 - REST controllers replacing the `ActionType` switch in `Server.java`:
@@ -33,6 +35,7 @@ Jackson is Spring Boot's default JSON library for both REST bodies and STOMP ove
 - **Spring Security**: session or JWT-based auth (session is simpler for a first cut), `BCryptPasswordEncoder`, an admin-only `@PreAuthorize` guard replacing `Server.requireAdmin`.
 - **Jackson**: no extra wiring needed — Spring Boot auto-configures `MappingJackson2HttpMessageConverter` for REST bodies out of the box.
 - **Realtime**: Spring `@EnableWebSocketMessageBroker` (STOMP) with per-chat topics (`/topic/chats/{chatId}`) and a per-user queue (`/user/queue/updates`) — this replaces `Server.sendPacketToUsers`/`ClientHandler.sendPacket`. STOMP's default (de)serialization is also Jackson-based, so the same DTOs from Phase 2 work unchanged across REST and WebSocket.
+- Once `Server`/`ClientHandler`/`Client`/`GUI` and the socket protocol they implement are deleted, remove `toString()`/`toStringClient()` from `AbstractUser`/`Chat`/`Message` (deferred from Phase 2) and update/delete the ~15 test assertions that check that wire format directly.
 
 ## Phase 4 — Svelte frontend
 - Scaffold with Vite (`npm create vite@latest frontend -- --template svelte`).
