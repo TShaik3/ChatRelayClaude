@@ -1,9 +1,11 @@
 package api;
 
+import api.security.ChatRelayUserDetails;
 import dto.UserDto;
 import model.AbstractUser;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +39,9 @@ public class UserController {
                                      boolean disabled, boolean admin) {
     }
 
+    public record UpdateSelfRequest(String username, String password, String firstName, String lastName) {
+    }
+
     /** Any authenticated user, not just admins -- needed for the chat-creation member picker. */
     @GetMapping
     public List<UserDto> getAll() {
@@ -50,6 +55,26 @@ public class UserController {
                 request.lastName(), request.disabled(), request.admin());
         UserDto dto = UserDto.from(user);
         messagingTemplate.convertAndSend("/topic/users", Map.of("type", "USER_CREATED", "user", dto));
+        return dto;
+    }
+
+    /**
+     * Self-service profile edit for any authenticated user, distinct from the admin-only
+     * {@link #update}. Deliberately has no {@code disabled}/{@code admin} fields on its request
+     * body -- rather than accepting and ignoring them, the caller's own current values are passed
+     * straight through to {@code updateUserDetails} so self-escalation isn't just rejected, it's
+     * structurally impossible. The literal "/me" segment resolves before UpdateMapping's
+     * "/{id}" pattern (Spring MVC always prefers an exact path match over a variable one), so this
+     * doesn't collide with a user editing themselves via the admin-only endpoint below.
+     */
+    @PutMapping("/me")
+    public UserDto updateSelf(@AuthenticationPrincipal ChatRelayUserDetails principal,
+                               @RequestBody UpdateSelfRequest request) {
+        AbstractUser self = principal.getUser();
+        AbstractUser user = dbManager.updateUserDetails(self.getId(), request.username(), request.firstName(),
+                request.lastName(), self.isDisabled(), self.isAdmin(), request.password());
+        UserDto dto = UserDto.from(user);
+        messagingTemplate.convertAndSend("/topic/users", Map.of("type", "USER_UPDATED", "user", dto));
         return dto;
     }
 

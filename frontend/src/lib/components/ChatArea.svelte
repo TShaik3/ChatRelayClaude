@@ -1,17 +1,19 @@
 <script>
   import { currentUser, users, chats, selectedChatId, messagesByChat, setMessagesForChat } from "../stores.js";
   import { api } from "../api.js";
-  import RenameChatDialog from "./RenameChatDialog.svelte";
+  import ChatSettingsDialog from "./ChatSettingsDialog.svelte";
   import Avatar from "./Avatar.svelte";
 
-  let showRename = $state(false);
+  let showSettings = $state(false);
   let messageText = $state("");
   let loadingMessages = $state(false);
 
   const selectedChat = $derived($chats.find((c) => c.id === $selectedChatId) ?? null);
   const messages = $derived($messagesByChat[$selectedChatId] ?? []);
   const isMember = $derived(selectedChat ? selectedChat.chatterIds.includes($currentUser.id) : false);
-  const canRename = $derived(
+  // Only the chat's owner or an IT admin may rename it or add/remove members (mirrors
+  // DBManager.assertCanManageChat on the backend).
+  const canManage = $derived(
     selectedChat !== null && ($currentUser.admin || selectedChat.ownerId === $currentUser.id),
   );
 
@@ -120,7 +122,9 @@
         </div>
       </div>
       <div class="actions">
-        <button class="btn" disabled={!canRename} onclick={() => (showRename = true)}>Rename</button>
+        {#if canManage}
+          <button class="btn" onclick={() => (showSettings = true)}>Chat Settings</button>
+        {/if}
         {#if $currentUser.admin}
           <button class="btn" onclick={downloadChat}>Download</button>
         {/if}
@@ -164,8 +168,8 @@
   {/if}
 </section>
 
-{#if showRename && selectedChat}
-  <RenameChatDialog chat={selectedChat} onClose={() => (showRename = false)} />
+{#if showSettings && selectedChat}
+  <ChatSettingsDialog chat={selectedChat} onClose={() => (showSettings = false)} />
 {/if}
 
 <style>

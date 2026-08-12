@@ -140,4 +140,38 @@ class UserControllerTest {
 
         assertFalse(response.getStatusCode().is2xxSuccessful());
     }
+
+    @Test
+    void regularUserCanUpdateOwnProfileViaMe() {
+        var self = dbManager.writeNewUser("selfEdit1", "pw", "Before", "Name", false, false);
+        ApiSession session = new ApiSession(restTemplate);
+        session.login("selfEdit1", "pw");
+
+        var response = session.put("/api/users/me",
+                Map.of("username", "selfEdit1", "password", "", "firstName", "After", "lastName", "Name"),
+                Map.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("After", response.getBody().get("firstName"));
+        assertEquals("After", dbManager.getUserById(self.getId()).getFirstName());
+    }
+
+    @Test
+    void updateSelfCannotEscalateOwnPrivileges() {
+        var self = dbManager.writeNewUser("selfEdit2", "pw", "Regular", "User", false, false);
+        ApiSession session = new ApiSession(restTemplate);
+        session.login("selfEdit2", "pw");
+
+        // UpdateSelfRequest has no admin/disabled fields, so a client sneaking them into the JSON
+        // body has no path to them ever reaching DBManager.updateUserDetails.
+        var response = session.put("/api/users/me",
+                Map.of("username", "selfEdit2", "password", "", "firstName", "Regular", "lastName", "User",
+                        "admin", true, "disabled", true),
+                Map.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        var reloaded = dbManager.getUserById(self.getId());
+        assertFalse(reloaded.isAdmin());
+        assertFalse(reloaded.isDisabled());
+    }
 }

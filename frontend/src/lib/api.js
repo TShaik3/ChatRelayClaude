@@ -47,6 +47,7 @@ export const api = {
   getUsers: () => request("/users"),
   createUser: (payload) => post("/users", payload),
   updateUser: (id, payload) => put(`/users/${id}`, payload),
+  updateMe: (payload) => put("/users/me", payload),
 
   getChats: () => request("/chats"),
   createChat: (otherUserIds, roomName, isPrivate) => post("/chats", { otherUserIds, roomName, isPrivate }),

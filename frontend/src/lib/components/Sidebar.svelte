@@ -3,7 +3,7 @@
   import { subscribeToChat } from "../ws.js";
   import Avatar from "./Avatar.svelte";
 
-  let { onNewChat, onNewUser, onEditUser, onLogout } = $props();
+  let { onNewChat, onNewUser, onEditUser, onOpenAccountSettings, onLogout } = $props();
 
   // Chats aren't bulk-loaded with their messages anymore (Phase 3 deliberately scoped message
   // loading to one chat at a time), so unlike the old Swing GUI there's no last-message
@@ -52,6 +52,14 @@
         {#if $currentUser.admin}<div class="badge">IT View</div>{/if}
       </div>
     </div>
+    <button class="icon-btn subtle" onclick={onOpenAccountSettings} title="Account settings" aria-label="Account settings">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </svg>
+    </button>
   </div>
 
   <div class="panels">
@@ -214,6 +222,16 @@
     background: #b91c1c;
   }
 
+  .icon-btn.subtle {
+    background: none;
+    color: var(--muted-text);
+  }
+
+  .icon-btn.subtle:hover {
+    background: var(--hover-overlay);
+    color: var(--text);
+  }
+
   .panels {
     flex: 1;
     min-height: 0;
@@ -261,7 +279,7 @@
   }
 
   .card:hover {
-    background: rgba(15, 23, 42, 0.05);
+    background: var(--hover-overlay);
   }
 
   .card.selected {

@@ -64,6 +64,10 @@
     padding: 24px;
   }
 
+  :global(:root[data-theme="dark"]) .login-screen {
+    background: radial-gradient(circle at 20% 20%, #1e2536, var(--bg) 55%);
+  }
+
   .login-card {
     display: flex;
     width: 100%;

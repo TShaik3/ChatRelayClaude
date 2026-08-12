@@ -22,6 +22,9 @@
   --it-badge: #dc2626;
   --it-badge-soft: #fef2f2;
 
+  /* Interaction */
+  --hover-overlay: rgba(15, 23, 42, 0.05);
+
   /* Shape */
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -31,6 +34,36 @@
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.12);
   --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+/* Dark mode: theme.js stamps data-theme on <html> from the saved choice (or OS preference on
+   first load) before the app ever paints, so there's no flash of the wrong theme to guard against
+   here -- this block only needs to redefine the tokens above, everything built on them (buttons,
+   fields, cards, message bubbles, etc.) already re-themes for free. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --brand: #6366f1;
+  --brand-hover: #818cf8;
+  --brand-soft: rgba(99, 102, 241, 0.18);
+
+  --bg: #111827;
+  --sidebar-bg: #1a2333;
+
+  --card-border: #2f3b52;
+  --card-selected-bg: rgba(99, 102, 241, 0.16);
+
+  --text: #e2e8f0;
+  --muted-text: #94a3b8;
+
+  --it-badge: #f87171;
+  --it-badge-soft: rgba(248, 113, 113, 0.12);
+
+  --hover-overlay: rgba(255, 255, 255, 0.06);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 * {
