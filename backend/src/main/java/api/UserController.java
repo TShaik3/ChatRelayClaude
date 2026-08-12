@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import server.DBManager;
 
 import java.util.List;
+import java.util.Map;
 
 /** Replaces GET_ALL_USERS/CREATE_USER/UPDATE_USER from the socket protocol (Server.java). */
 @RestController
@@ -48,7 +49,7 @@ public class UserController {
         AbstractUser user = dbManager.writeNewUser(request.username(), request.password(), request.firstName(),
                 request.lastName(), request.disabled(), request.admin());
         UserDto dto = UserDto.from(user);
-        messagingTemplate.convertAndSend("/topic/users", dto);
+        messagingTemplate.convertAndSend("/topic/users", Map.of("type", "USER_CREATED", "user", dto));
         return dto;
     }
 
@@ -58,7 +59,7 @@ public class UserController {
         AbstractUser user = dbManager.updateUserDetails(id, request.username(), request.firstName(),
                 request.lastName(), request.disabled(), request.admin(), request.password());
         UserDto dto = UserDto.from(user);
-        messagingTemplate.convertAndSend("/topic/users", dto);
+        messagingTemplate.convertAndSend("/topic/users", Map.of("type", "USER_UPDATED", "user", dto));
         return dto;
     }
 }

@@ -43,12 +43,16 @@ Built as a **strangler-fig addition**, not a replacement: `Server`/`ClientHandle
 - One JDK gotcha hit and fixed along the way: `TestRestTemplate`'s default `HttpURLConnection`-based client throws `HttpRetryException` on a POST that gets back a 401 (it can't rewind an already-streamed request body to retry). Fixed by pointing test `RestTemplate`s at the modern `java.net.http.HttpClient`-backed `JdkClientHttpRequestFactory` instead (`support.TestRestTemplates`).
 - `toString()`/`toStringClient()` remain on `AbstractUser`/`Chat`/`Message`, still used by the still-running socket layer — removal stays deferred to Phase 5, alongside deleting `Server`/`ClientHandler`/`Client`/`GUI` themselves.
 
-## Phase 4 — Svelte frontend
-- Scaffold with Vite (`npm create vite@latest frontend -- --template svelte`).
-- Screens mapped from `GUI.java`: login form, sidebar (chat list + admin's "All Users" panel), chat window, create-chat/create-user/edit-user dialogs.
-- A `stores.js` mirroring `Client.java`'s in-memory state: writable stores for `users`, `chats`, `messages`, `currentUser`.
-- `api.js` — `fetch`-based REST client for the controllers above.
-- `ws.js` — native `WebSocket` or `@stomp/stompjs` client subscribing to the STOMP topics, folding incoming events into the stores (this is the direct replacement for `Client.handleIncomingPacket`).
+## Phase 4 — Svelte frontend ✅ done
+Built against the Phase 3 backend (both still running alongside the untouched socket server/Swing client). Uses Svelte 5 runes throughout (the scaffold was upgraded to Svelte 5 back in Phase 0), not the Svelte 4 `let`-reactive style the plan originally implied.
+
+- `lib/stores.js` — `writable` stores (`currentUser`, `users`, `chats`, `messagesByChat` keyed by chat id, `selectedChatId`) plus small mutator helpers (`upsertUser`, `upsertChat`, `removeChat`, `appendMessage`) mirroring `Client.java`'s `addOrReplaceUser`/`addOrReplaceChat`.
+- `lib/api.js` — `fetch`-based REST client for every Phase 3 endpoint.
+- `lib/ws.js` — `@stomp/stompjs` client. Connects after login (the STOMP handshake authenticates via the existing session cookie, per Phase 3's `PrincipalHandshakeInterceptor`), subscribes to `/user/queue/updates` + `/topic/users` up front, and to each `/topic/chats/{id}` as chats are loaded/created/joined. Folds `{type, ...}` events into the stores.
+- Screens/components mapped from `GUI.java`: `Login`, `Sidebar` (chat list + admin "All Users" panel), `ChatArea` (messages + input, admin-only Download-as-.txt via a client-side `Blob`), `CreateChatDialog`, `CreateUserDialog`, `EditUserDialog`, `RenameChatDialog`, all composed in `MainLayout`. No add/remove-chat-member UI — `GUI.java` never exposed that either, even though the socket protocol (and now the REST API) supports it, so there's nothing to port.
+- One deliberate behavior change from `GUI.java`: the chat list can no longer sort by most-recent-message-time, since Phase 3 intentionally scoped message loading to one chat at a time instead of bulk-loading everything at login. It sorts by chat id (newest-created first) instead — a disclosed proxy, not true recency.
+- Fixed one small backend inconsistency found while wiring this up: `UserController`'s `/topic/users` broadcast was a bare `UserDto` while every other broadcast used a `{type, ...}` envelope — changed to `{type: "USER_CREATED"|"USER_UPDATED", user}` for consistency.
+- Verified in a real browser, not just `npm run build`: installed Playwright's Chromium, ran the full stack (Postgres, backend on :8080, Vite dev server on :5173) together, and drove it end to end — login with real migrated credentials, chat list rendering (including the admin moderating-view red-text/read-only-input treatment), opening a chat and loading its history, sending a message and confirming it renders **only via the WebSocket broadcast** (no optimistic append in the code, so seeing it appear proves the REST→broadcast→STOMP→UI pipeline actually works), and opening the create-chat/edit-user dialogs. Caught and fixed one real bug this way: the sidebar's chat-list and All-Users sections could grow tall enough to push the Create User/Log out toolbar out of view; fixed by giving them one shared scrollable region instead of two unbounded ones.
 
 ## Phase 5 — Cutover
 - Since this looks like a small internal tool (not a live production system with concurrent users to migrate gracefully), a **hard cutover** is simplest: run the Postgres import script once, stand up the new backend+frontend, retire `ServerMain`/`ClientMain`/the Swing GUI.

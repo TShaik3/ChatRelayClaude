@@ -12,5 +12,8 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "svelte": "^5.56.8",
     "vite": "^8.2.1"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.3.0"
   }
 }
