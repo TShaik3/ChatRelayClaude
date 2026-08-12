@@ -26,7 +26,7 @@ Jackson is Spring Boot's default JSON library for both REST bodies and STOMP ove
 - Added `UserDto`, `ChatDto`, `MessageDto` (Jackson-serializable records) with `from(...)` mappers off the domain models, plus mapping/round-trip tests — ready for Phase 3's controllers to consume directly. Domain objects remain the persistence-layer models mapped by the JDBC repositories.
 - Removed `AbstractUser.getAllChatIds()` — genuinely dead code, zero call sites anywhere in the codebase.
 
-## Phase 3 — Backend API & realtime ✅ done
+## Phase 3 — Backend API & realtime
 Built as a **strangler-fig addition**, not a replacement: `Server`/`ClientHandler`/`ServerMain` (socket, port 5000) and `Client`/`GUI`/`ClientMain` (Swing) are untouched and still fully working, running alongside the new Spring MVC/WebSocket layer (HTTP, port 8080) against the same Postgres database. Both were left in place deliberately — deleting them now would leave no working UI at all until Phase 4's Svelte frontend exists to replace them; actual retirement happens at Phase 5's cutover, per that phase's own plan.
 
 - New `api` package (`backend/src/main/java/api/`), scanned explicitly via `@SpringBootApplication(scanBasePackages = {"app", "api"})` since it's a sibling of `app`, not a sub-package.
@@ -43,7 +43,7 @@ Built as a **strangler-fig addition**, not a replacement: `Server`/`ClientHandle
 - One JDK gotcha hit and fixed along the way: `TestRestTemplate`'s default `HttpURLConnection`-based client throws `HttpRetryException` on a POST that gets back a 401 (it can't rewind an already-streamed request body to retry). Fixed by pointing test `RestTemplate`s at the modern `java.net.http.HttpClient`-backed `JdkClientHttpRequestFactory` instead (`support.TestRestTemplates`).
 - `toString()`/`toStringClient()` remain on `AbstractUser`/`Chat`/`Message`, still used by the still-running socket layer — removal stays deferred to Phase 5, alongside deleting `Server`/`ClientHandler`/`Client`/`GUI` themselves.
 
-## Phase 4 — Svelte frontend ✅ done
+## Phase 4 — Svelte frontend
 Built against the Phase 3 backend (both still running alongside the untouched socket server/Swing client). Uses Svelte 5 runes throughout (the scaffold was upgraded to Svelte 5 back in Phase 0), not the Svelte 4 `let`-reactive style the plan originally implied.
 
 - `lib/stores.js` — `writable` stores (`currentUser`, `users`, `chats`, `messagesByChat` keyed by chat id, `selectedChatId`) plus small mutator helpers (`upsertUser`, `upsertChat`, `removeChat`, `appendMessage`) mirroring `Client.java`'s `addOrReplaceUser`/`addOrReplaceChat`.
