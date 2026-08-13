@@ -91,6 +91,11 @@ public class ChatRepository {
         jdbc.update("UPDATE chats SET room_name = ? WHERE id = ?", newRoomName, Integer.parseInt(chatId));
     }
 
+    /** chat_members and messages both carry ON DELETE CASCADE against chats.id, so this alone clears them too. */
+    public void delete(String chatId) {
+        jdbc.update("DELETE FROM chats WHERE id = ?", Integer.parseInt(chatId));
+    }
+
     /** Highest id currently stored, or -1 if the table is empty -- used to bootstrap Chat's id counter. */
     public int maxId() {
         Integer max = jdbc.queryForObject("SELECT COALESCE(MAX(id), -1) FROM chats", Integer.class);

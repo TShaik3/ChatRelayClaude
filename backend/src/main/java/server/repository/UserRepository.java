@@ -83,6 +83,16 @@ public class UserRepository {
                 user.isDisabled(), user.isAdmin(), Integer.parseInt(user.getId()));
     }
 
+    /**
+     * Users can still own chats (chats.owner_id) or have sent messages (messages.author_id) --
+     * neither foreign key cascades on delete, so removing a user who has either throws
+     * DataIntegrityViolationException. DBManager.deleteUser translates that into a message
+     * pointing the caller at disabling the account instead.
+     */
+    public void delete(String id) {
+        jdbc.update("DELETE FROM users WHERE id = ?", Integer.parseInt(id));
+    }
+
     /** Highest id currently stored, or -1 if the table is empty -- used to bootstrap AbstractUser's id counter. */
     public int maxId() {
         Integer max = jdbc.queryForObject("SELECT COALESCE(MAX(id), -1) FROM users", Integer.class);

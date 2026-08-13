@@ -19,6 +19,10 @@ export function upsertUser(user) {
   currentUser.update((me) => (me && me.id === user.id ? user : me));
 }
 
+export function removeUser(userId) {
+  users.update((list) => list.filter((u) => u.id !== userId));
+}
+
 export function upsertChat(chat) {
   chats.update((list) => {
     const next = list.filter((c) => c.id !== chat.id);

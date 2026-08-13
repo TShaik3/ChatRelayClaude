@@ -24,6 +24,8 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -326,6 +328,78 @@ class DBManagerTest {
 
         assertThrows(SecurityException.class,
                 () -> db.renameChat(rando.getId(), chat.getId(), "hijacked"));
+    }
+
+    // DB-21
+    @Test
+    void deleteUserRemovesAnUnusedUser() {
+        DBManager db = newManager();
+        AbstractUser user = db.writeNewUser("deleteMe1", "pw", "Del", "Ete", false, false);
+        AbstractUser admin = db.writeNewUser("admin2", "pw", "Ad", "Min", false, true);
+
+        db.deleteUser(user.getId(), admin.getId());
+
+        assertNull(db.getUserById(user.getId()));
+    }
+
+    // DB-22
+    @Test
+    void deleteUserRejectsDeletingYourself() {
+        DBManager db = newManager();
+        AbstractUser admin = db.writeNewUser("admin3", "pw", "Ad", "Min", false, true);
+
+        assertThrows(IllegalArgumentException.class, () -> db.deleteUser(admin.getId(), admin.getId()));
+    }
+
+    // DB-23
+    @Test
+    void deleteUserRejectsAUserWhoOwnsAChat() {
+        DBManager db = newManager();
+        AbstractUser owner = db.writeNewUser("owner8", "pw", "Own", "Er", false, false);
+        AbstractUser admin = db.writeNewUser("admin4", "pw", "Ad", "Min", false, true);
+        db.writeNewChat(owner.getId(), "room", new ArrayList<>(), false);
+
+        assertThrows(IllegalArgumentException.class, () -> db.deleteUser(owner.getId(), admin.getId()));
+        assertNotNull(db.getUserById(owner.getId()), "rejected deletion must not have removed the user");
+    }
+
+    // DB-24
+    @Test
+    void deleteUserRejectsAUserWhoHasSentMessages() {
+        DBManager db = newManager();
+        AbstractUser sender = db.writeNewUser("sender1", "pw", "Sen", "Der", false, false);
+        AbstractUser admin = db.writeNewUser("admin5", "pw", "Ad", "Min", false, true);
+        Chat chat = db.writeNewChat(sender.getId(), "room", new ArrayList<>(), false);
+        db.writeNewMessage("hi", sender.getId(), chat.getId());
+
+        assertThrows(IllegalArgumentException.class, () -> db.deleteUser(sender.getId(), admin.getId()));
+    }
+
+    // DB-25
+    @Test
+    void deleteChatOwnerSucceedsUnrelatedUserFails() {
+        DBManager db = newManager();
+        AbstractUser owner = db.writeNewUser("owner9", "pw", "Own", "Er", false, false);
+        AbstractUser rando = db.writeNewUser("rando4", "pw", "Ran", "Do", false, false);
+        Chat chat = db.writeNewChat(owner.getId(), "room", new ArrayList<>(), false);
+
+        assertThrows(SecurityException.class, () -> db.deleteChat(chat.getId(), rando.getId()));
+
+        db.deleteChat(chat.getId(), owner.getId());
+        assertNull(db.getChatById(chat.getId()));
+    }
+
+    // DB-26
+    @Test
+    void deleteChatAlsoRemovesItsMessages() {
+        DBManager db = newManager();
+        AbstractUser owner = db.writeNewUser("owner10", "pw", "Own", "Er", false, false);
+        Chat chat = db.writeNewChat(owner.getId(), "room", new ArrayList<>(), false);
+        db.writeNewMessage("hi", owner.getId(), chat.getId());
+
+        db.deleteChat(chat.getId(), owner.getId());
+
+        assertEquals(0, testDb.countRows("messages"), "messages.chat_id ON DELETE CASCADE must clear them");
     }
 
     // DB-20

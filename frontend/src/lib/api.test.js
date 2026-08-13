@@ -62,6 +62,22 @@ describe("api requests", () => {
     expect(fetch).toHaveBeenCalledWith("/api/chats/42/members/7", expect.objectContaining({ method: "DELETE" }));
   });
 
+  it("uses DELETE for deleteUser with no body", async () => {
+    mockFetchOnce({ status: 204 });
+
+    await api.deleteUser("7");
+
+    expect(fetch).toHaveBeenCalledWith("/api/users/7", expect.objectContaining({ method: "DELETE" }));
+  });
+
+  it("uses DELETE for deleteChat with no body", async () => {
+    mockFetchOnce({ status: 204 });
+
+    await api.deleteChat("42");
+
+    expect(fetch).toHaveBeenCalledWith("/api/chats/42", expect.objectContaining({ method: "DELETE" }));
+  });
+
   it("returns null for a 204 No Content response", async () => {
     mockFetchOnce({ status: 204 });
     const result = await api.logout();

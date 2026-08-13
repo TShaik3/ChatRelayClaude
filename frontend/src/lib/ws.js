@@ -1,6 +1,6 @@
 import { Client } from "@stomp/stompjs";
 import { get } from "svelte/store";
-import { chats, upsertChat, removeChat, upsertUser, appendMessage } from "./stores.js";
+import { chats, upsertChat, removeChat, upsertUser, removeUser, appendMessage } from "./stores.js";
 
 // STOMP replacement for Client.handleIncomingPacket's server-push handling. The handshake
 // authenticates via the existing session cookie (see api.PrincipalHandshakeInterceptor on the
@@ -71,6 +71,7 @@ function handleUserEvent(event) {
       subscribeToChat(event.chat);
       break;
     case "REMOVED_FROM_CHAT":
+    case "CHAT_DELETED":
       removeChat(event.chatId);
       break;
     default:
@@ -83,6 +84,9 @@ function handleUsersTopicEvent(event) {
     case "USER_CREATED":
     case "USER_UPDATED":
       upsertUser(event.user);
+      break;
+    case "USER_DELETED":
+      removeUser(event.userId);
       break;
     default:
       console.warn("Unhandled users-topic event", event);

@@ -48,10 +48,12 @@ export const api = {
   createUser: (payload) => post("/users", payload),
   updateUser: (id, payload) => put(`/users/${id}`, payload),
   updateMe: (payload) => put("/users/me", payload),
+  deleteUser: (id) => request(`/users/${id}`, { method: "DELETE" }),
 
   getChats: () => request("/chats"),
   createChat: (otherUserIds, roomName, isPrivate) => post("/chats", { otherUserIds, roomName, isPrivate }),
   renameChat: (chatId, roomName) => put(`/chats/${chatId}/rename`, { roomName }),
+  deleteChat: (chatId) => request(`/chats/${chatId}`, { method: "DELETE" }),
   addMember: (chatId, userId) => post(`/chats/${chatId}/members`, { userId }),
   removeMember: (chatId, userId) => request(`/chats/${chatId}/members/${userId}`, { method: "DELETE" }),
 

@@ -1,7 +1,7 @@
 <script>
   import Modal from "./Modal.svelte";
   import { api } from "../api.js";
-  import { upsertUser } from "../stores.js";
+  import { upsertUser, removeUser } from "../stores.js";
 
   let { user, onClose } = $props();
 
@@ -22,6 +22,7 @@
   let disabled = $state(user.disabled);
   let error = $state("");
   let submitting = $state(false);
+  let deleting = $state(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -42,6 +43,23 @@
       error = err.message;
     } finally {
       submitting = false;
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Delete ${user.firstName} ${user.lastName}? This cannot be undone.`)) {
+      return;
+    }
+    error = "";
+    deleting = true;
+    try {
+      await api.deleteUser(user.id);
+      removeUser(user.id);
+      onClose();
+    } catch (err) {
+      error = err.message;
+    } finally {
+      deleting = false;
     }
   }
 </script>
@@ -72,6 +90,8 @@
     </label>
     {#if error}<p class="error-text">{error}</p>{/if}
     <div class="modal-actions">
+      <button type="button" class="btn btn-danger" disabled={deleting} onclick={handleDelete}>Delete User</button>
+      <span class="spacer"></span>
       <button type="button" class="btn" onclick={onClose}>Cancel</button>
       <button type="submit" class="btn btn-primary" disabled={submitting}>Save</button>
     </div>
@@ -92,5 +112,9 @@
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
+  }
+
+  .spacer {
+    flex: 1;
   }
 </style>

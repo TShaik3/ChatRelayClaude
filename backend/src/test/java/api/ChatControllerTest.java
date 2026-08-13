@@ -23,6 +23,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -149,5 +150,22 @@ class ChatControllerTest {
         var response = randoSession.post("/api/chats/" + chatId + "/members", Map.of("userId", other.getId()), Map.class);
 
         assertFalse(response.getStatusCode().is2xxSuccessful());
+    }
+
+    @Test
+    void ownerCanDeleteChatNonOwnerCannot() {
+        ApiSession ownerSession = loginAs(owner, "pw");
+        var created = ownerSession.post("/api/chats",
+                Map.of("otherUserIds", List.of(), "roomName", "to-delete", "isPrivate", false), Map.class);
+        String chatId = (String) created.getBody().get("id");
+
+        ApiSession randoSession = loginAs(rando, "pw");
+        var rejected = randoSession.delete("/api/chats/" + chatId, Void.class);
+        assertFalse(rejected.getStatusCode().is2xxSuccessful());
+
+        var deleted = ownerSession.delete("/api/chats/" + chatId, Void.class);
+        assertEquals(HttpStatus.OK, deleted.getStatusCode());
+
+        assertNull(dbManager.getChatById(chatId), "chat must be gone after deletion");
     }
 }

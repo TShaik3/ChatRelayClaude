@@ -2,7 +2,7 @@
   import Modal from "./Modal.svelte";
   import Avatar from "./Avatar.svelte";
   import { api } from "../api.js";
-  import { users as usersStore, upsertChat } from "../stores.js";
+  import { users as usersStore, upsertChat, removeChat } from "../stores.js";
 
   // `chat` is a reactive prop (ChatArea passes its own $derived selectedChat), so as WS broadcasts
   // update the `chats` store -- a rename, another admin adding/removing a member -- this dialog's
@@ -17,6 +17,9 @@
 
   let memberError = $state("");
   let pendingMemberId = $state(null);
+
+  let deleteError = $state("");
+  let deleting = $state(false);
 
   const members = $derived(
     chat.chatterIds.map((id) => $usersStore.find((u) => u.id === id)).filter(Boolean),
@@ -63,6 +66,23 @@
       memberError = err.message;
     } finally {
       pendingMemberId = null;
+    }
+  }
+
+  async function deleteChat() {
+    if (!confirm(`Delete "${chat.roomName}"? This permanently deletes the chat and all of its messages.`)) {
+      return;
+    }
+    deleteError = "";
+    deleting = true;
+    try {
+      await api.deleteChat(chat.id);
+      removeChat(chat.id);
+      onClose();
+    } catch (err) {
+      deleteError = err.message;
+    } finally {
+      deleting = false;
     }
   }
 </script>
@@ -127,6 +147,13 @@
   {/if}
 
   {#if memberError}<p class="error-text">{memberError}</p>{/if}
+
+  <div class="section danger-zone">
+    <div class="section-title">Danger Zone</div>
+    <p class="danger-hint">Deleting a chat removes it and its entire message history for every member. This can't be undone.</p>
+    <button type="button" class="btn btn-danger" disabled={deleting} onclick={deleteChat}>Delete Chat</button>
+    {#if deleteError}<p class="error-text">{deleteError}</p>{/if}
+  </div>
 
   <div class="modal-actions">
     <button type="button" class="btn" onclick={onClose}>Close</button>
@@ -202,5 +229,16 @@
   .modal-actions {
     display: flex;
     justify-content: flex-end;
+  }
+
+  .danger-zone {
+    border-top: 1px solid var(--card-border);
+    padding-top: 16px;
+  }
+
+  .danger-hint {
+    font-size: 0.82rem;
+    color: var(--muted-text);
+    margin: 0 0 10px;
   }
 </style>

@@ -96,4 +96,19 @@ public class ChatController {
         messagingTemplate.convertAndSendToUser(userId, "/queue/updates",
                 Map.of("type", "REMOVED_FROM_CHAT", "chatId", id));
     }
+
+    /**
+     * Deletion (not just leaving) is restricted to the chat owner or an IT admin, same as rename
+     * (assertCanManageChat). Members are notified individually via /queue/updates rather than
+     * /topic/chats/{id} -- once the chat row is gone, a client that wasn't already subscribed
+     * would never receive a broadcast on that topic, so this mirrors how CHAT_CREATED is
+     * delivered rather than how MEMBER_REMOVED is.
+     */
+    @DeleteMapping("/{id}")
+    public void delete(@AuthenticationPrincipal ChatRelayUserDetails principal, @PathVariable String id) {
+        Chat chat = dbManager.deleteChat(id, principal.getUser().getId());
+        for (String memberId : chat.getChattersIds()) {
+            messagingTemplate.convertAndSendToUser(memberId, "/queue/updates", Map.of("type", "CHAT_DELETED", "chatId", id));
+        }
+    }
 }

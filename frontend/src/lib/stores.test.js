@@ -7,6 +7,7 @@ import {
   messagesByChat,
   selectedChatId,
   upsertUser,
+  removeUser,
   upsertChat,
   removeChat,
   setMessagesForChat,
@@ -48,6 +49,26 @@ describe("upsertUser", () => {
     currentUser.set({ id: "1", username: "alice" });
 
     upsertUser({ id: "2", username: "bob" });
+
+    expect(get(currentUser)).toEqual({ id: "1", username: "alice" });
+  });
+});
+
+describe("removeUser", () => {
+  it("removes the user from the users list", () => {
+    upsertUser({ id: "1", username: "alice" });
+    upsertUser({ id: "2", username: "bob" });
+
+    removeUser("1");
+
+    expect(get(users)).toEqual([{ id: "2", username: "bob" }]);
+  });
+
+  it("leaves currentUser untouched (deleting yourself is rejected server-side)", () => {
+    currentUser.set({ id: "1", username: "alice" });
+    upsertUser({ id: "1", username: "alice" });
+
+    removeUser("1");
 
     expect(get(currentUser)).toEqual({ id: "1", username: "alice" });
   });

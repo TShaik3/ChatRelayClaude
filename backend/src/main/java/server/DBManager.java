@@ -5,6 +5,7 @@ import model.Chat;
 import model.ITAdmin;
 import model.Message;
 import model.User;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -170,6 +171,41 @@ public class DBManager {
         }
         userRepository.update(user);
         return user;
+    }
+
+    /**
+     * Hard-deletes a user. chats.owner_id and messages.author_id are NOT NULL foreign keys with
+     * no cascade -- deliberately, so deleting a user can never silently erase a chat's history or
+     * orphan a message out from under everyone else in that chat. A user who owns a chat or has
+     * ever sent a message therefore can't be deleted at all; the existing is_disabled flag
+     * (updateUserDetails) is the supported way to deactivate them instead. Only chat_members rows
+     * cascade, since losing membership in a chat you didn't own/post to isn't destructive.
+     */
+    public void deleteUser(String userId, String requesterId) {
+        if (userId.equals(requesterId)) {
+            throw new IllegalArgumentException("You cannot delete your own account");
+        }
+        AbstractUser user = getUserById(userId);
+        if (user == null) {
+            throw new IllegalArgumentException("No such user: " + userId);
+        }
+        try {
+            userRepository.delete(userId);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException(
+                    user.getUserName() + " owns a chat or has sent messages and can't be deleted -- disable the account instead.");
+        }
+    }
+
+    /** Returns the chat as it existed just before deletion, so the caller can still notify its members. */
+    public Chat deleteChat(String chatId, String requesterId) {
+        Chat chat = getChatById(chatId);
+        if (chat == null) {
+            throw new IllegalArgumentException("No such chat: " + chatId);
+        }
+        assertCanManageChat(chat, requesterId);
+        chatRepository.delete(chatId);
+        return chat;
     }
 
     public Chat addUserToChat(String userId, String chatId, String requesterId) {

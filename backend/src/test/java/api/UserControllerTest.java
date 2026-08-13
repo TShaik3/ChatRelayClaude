@@ -22,6 +22,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -173,5 +174,39 @@ class UserControllerTest {
         var reloaded = dbManager.getUserById(self.getId());
         assertFalse(reloaded.isAdmin());
         assertFalse(reloaded.isDisabled());
+    }
+
+    @Test
+    void adminCanDeleteAnUnusedUser() {
+        ApiSession session = new ApiSession(restTemplate);
+        session.login("admin1", "pw");
+        var target = dbManager.writeNewUser("toDelete1", "pw", "To", "Delete", false, false);
+
+        var response = session.delete("/api/users/" + target.getId(), Void.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNull(dbManager.getUserById(target.getId()));
+    }
+
+    @Test
+    void nonAdminCannotDeleteUser() {
+        var target = dbManager.writeNewUser("toDelete2", "pw", "To", "Delete", false, false);
+        ApiSession session = new ApiSession(restTemplate);
+        session.login("regular1", "pw");
+
+        var response = session.delete("/api/users/" + target.getId(), Void.class);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
+
+    @Test
+    void adminCannotDeleteTheirOwnAccount() {
+        ApiSession session = new ApiSession(restTemplate);
+        session.login("admin1", "pw");
+        var self = dbManager.getUserByUsername("admin1");
+
+        var response = session.delete("/api/users/" + self.getId(), Void.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 }
