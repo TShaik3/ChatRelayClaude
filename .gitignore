@@ -12,3 +12,6 @@ frontend/dist/
 
 # OS
 .DS_Store
+
+# Host-specific deployment config (e.g. TAILSCALE_BIND) -- never the same value across machines
+.env

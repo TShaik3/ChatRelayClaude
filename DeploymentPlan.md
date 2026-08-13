@@ -11,11 +11,11 @@ was called "acceptable for a same-origin SPA... but would need revisiting behind
 multi-origin deployment" (see [MigrationPlan.md](MigrationPlan.md), Phase 3). Tailscale keeps the
 app off the public internet entirely, so that revisit isn't required for this deployment.
 
-No code changes are needed to ship this. The existing [Dockerfile](Dockerfile) and
-[docker-compose.yml](docker-compose.yml) already produce a single-deployable image (Svelte build
-baked into the Spring Boot jar, served same-origin on port 8080) — this plan is purely
-infrastructure: get that same image running on the Pi and reachable over Tailscale instead of
-`localhost`.
+No application code changes were needed to ship this. The existing [Dockerfile](Dockerfile)
+already produces a single-deployable image (Svelte build baked into the Spring Boot jar, served
+same-origin on port 8080) that runs on Pi hardware unmodified — this plan is mostly
+infrastructure, plus a couple of small [docker-compose.yml](docker-compose.yml) tweaks (a
+`restart` policy, and a configurable Tailscale-only port binding) covered in Phases 2-3 below.
 
 ---
 
@@ -103,23 +103,32 @@ piece of infrastructure (a registry) for faster deploys.
   settings UI (`PUT /api/users/me`, backed by
   [AccountSettingsDialog.svelte](frontend/src/lib/components/AccountSettingsDialog.svelte)) to set
   a real password before inviting anyone else onto the tailnet to use the app.
-- **Turn on HTTPS inside the tailnet with `tailscale serve`**, rather than pointing devices at
-  `http://chatrelay-pi.<tailnet>.ts.net:8080` directly. Login is a session cookie
-  (`SecurityConfig`'s `SessionCreationPolicy.IF_REQUIRED`) sent over every subsequent request; over
-  plain HTTP that cookie travels in cleartext even though the *link* is already encrypted by
-  WireGuard node-to-node — proxying through `tailscale serve` gets it a real TLS cert issued for
-  the tailnet's own HTTPS hostname, terminating on the Pi, for one command:
+- **HTTPS via `tailscale serve` was tried first, and abandoned.** The plan going in was to proxy
+  the app behind `tailscale serve` (`sudo tailscale serve --bg http://localhost:8080`) so devices
+  hit a real TLS cert on the tailnet's own HTTPS hostname instead of the session cookie riding
+  over plain HTTP. Page loads and REST calls worked fine through it, but the STOMP WebSocket
+  (`/ws`) never completed its handshake — confirmed in the browser's Network tab as a repeating
+  cycle of failed upgrade attempts with no response headers ever coming back, and unchanged after
+  updating Tailscale to the latest version. Symptom in the app: sent messages never appeared for
+  anyone (including the sender) without a manual page refresh, since
+  [ChatArea.svelte](frontend/src/lib/components/ChatArea.svelte)'s send flow deliberately has no
+  optimistic UI update and depends entirely on the WebSocket broadcast arriving.
+- **What's actually running: bound straight to the Pi's Tailscale interface, no `serve` proxy.**
+  `sudo tailscale serve reset` turns the proxy off. `docker-compose.yml`'s port binding reads from
+  a `TAILSCALE_BIND` environment variable (defaulting to `127.0.0.1`, i.e. unreachable off-box, if
+  unset) — on the Pi, a `.env` file (gitignored, since this value is host-specific) sets it to the
+  Pi's own Tailscale address:
   ```bash
-  sudo tailscale serve https / http://localhost:8080
+  tailscale ip -4   # note this address
+  echo "TAILSCALE_BIND=<that address>" > .env
+  docker compose up -d
   ```
-  After this, devices browse to `https://chatrelay-pi.<tailnet-name>.ts.net` with no port number
-  and a valid cert — no separate reverse proxy container needed for a tailnet-only deployment.
-- **Firewall off the raw port from the rest of the LAN.** `docker-compose.yml`'s `ports:
-  "8080:8080"` binds to all interfaces, which means any other device on the same home Wi-Fi
-  (not just the tailnet) can currently reach the app directly too, bypassing Tailscale entirely.
-  Since `tailscale serve` (above) already re-exposes the app over the tailnet, change that line to
-  `"127.0.0.1:8080:8080"` so only the Pi itself (and the Tailscale proxy running on it) can reach
-  the container port — closing the direct-LAN path without losing tailnet access.
+  This still keeps the app off the regular LAN (only the Tailscale interface is bound, not
+  `0.0.0.0`) while sidestepping whatever `tailscale serve`'s reverse proxy was doing to the
+  WebSocket upgrade. The tradeoff: devices now browse to `http://<tailscale-ip-or-name>:8080`
+  (plain HTTP, with a port number) instead of a clean HTTPS tailnet URL. That's a smaller loss
+  than it sounds — traffic between tailnet nodes is already WireGuard-encrypted at the network
+  layer, so this drops app-layer TLS on top of an already-encrypted link, not encryption itself.
 
 ## Phase 4 — Keep it running
 

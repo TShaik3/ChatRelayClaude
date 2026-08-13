@@ -27,11 +27,16 @@ services:
       CHATRELAY_DB_USER: chatrelay
       CHATRELAY_DB_PASSWORD: chatrelay
     ports:
-      # Bound to loopback only -- tailscale serve (already proxying HTTPS from the tailnet to
-      # localhost:8080) is the sole intended entry point. Without this, "8080:8080" binds all
-      # interfaces, letting any other device on the same LAN reach the app directly, bypassing
-      # Tailscale entirely.
-      - "127.0.0.1:8080:8080"
+      # Bound to a single interface, not all of them -- plain "8080:8080" would let any other
+      # device on the same LAN reach the app directly, bypassing Tailscale entirely. TAILSCALE_BIND
+      # defaults to loopback-only (nothing reachable off-box) when unset; set it in a local .env
+      # file to the Pi's own Tailscale IP (`tailscale ip -4`) to expose the app over the tailnet.
+      # tailscale serve's HTTPS reverse proxy was tried first instead of this, but its WebSocket
+      # proxying didn't forward the STOMP upgrade correctly even after updating Tailscale -- binding
+      # straight to the Tailscale interface sidesteps that proxy layer entirely. Traffic between
+      # tailnet nodes is already WireGuard-encrypted, so plain HTTP here isn't a step down in
+      # transport security, just one over app-layer TLS.
+      - "${TAILSCALE_BIND:-127.0.0.1}:8080:8080"
 
 volumes:
   pgdata:
