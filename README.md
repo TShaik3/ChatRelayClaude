@@ -24,7 +24,7 @@ The project started as a plain `javac`/`java` (no build tool) client/server chat
   rewritten whole-file on every write.
 - Test coverage: JUnit 5 unit tests for the model/packet layer, a headless socket harness for
   protocol/integration tests, and manual multi-instance testing for the Swing GUI — documented in
-  full in [TEST_PLAN.md](TEST_PLAN.md) (now a historical document, see below).
+  full in [Documents/legacy/TEST_PLAN.md](Documents/legacy/TEST_PLAN.md) (now a historical document, see below).
 
 ### Migration to full-stack
 
@@ -40,28 +40,23 @@ were proven out:
 | 2 — Domain model cleanup | Added Jackson-serializable `UserDto`/`ChatDto`/`MessageDto`; removed genuinely dead code. `toString()`/`toStringClient()` deliberately deferred to Phase 5 since ~15 existing tests still asserted on them. |
 | 3 — Backend API & realtime | Added REST controllers (`AuthController`, `UserController`, `ChatController`, `MessageController`) and STOMP-over-WebSocket broadcasts, session-based Spring Security — all running alongside the untouched socket server on port 8080 next to the socket server's port 5000. Verified with 21 new integration tests plus a real end-to-end WebSocket broadcast test. |
 | 4 — Svelte frontend | Built the Svelte 5 UI (stores, REST client, STOMP client, screens mapped 1:1 from `GUI.java`) against the Phase 3 backend. Verified with a real Playwright browser run against the full stack. |
-| 5 — Cutover | Retired the legacy stack for good: deleted `server.Server`/`ClientHandler`/`ServerMain`, all of `client.*`, and `packet.*` once a full reference audit ([CutoverReferenceMap.md](CutoverReferenceMap.md)) confirmed nothing else depended on them. Added a single-deployable multi-stage `Dockerfile` + `docker-compose.yml`. Result: 77 tests passing, zero references to the legacy code remaining. |
+| 5 — Cutover | Retired the legacy stack for good: deleted `server.Server`/`ClientHandler`/`ServerMain`, all of `client.*`, and `packet.*` once a full reference audit ([Documents/legacy/CutoverReferenceMap.md](Documents/legacy/CutoverReferenceMap.md)) confirmed nothing else depended on them. Added a single-deployable multi-stage `Dockerfile` + `docker-compose.yml`. Result: 77 tests passing, zero references to the legacy code remaining. |
 | 6 — Testing | Migrated backend tests from a locally-installed Postgres to Testcontainers (via colima); wrote the frontend test suite (Vitest + `@testing-library/svelte`) from scratch — 32 tests across 5 files. |
 
 Full narrative detail, including every bug found and fixed along the way, is in
-[MigrationPlan.md](MigrationPlan.md).
+[Documents/MigrationPlan.md](Documents/MigrationPlan.md).
 
 ---
 
 ## Documentation
 
-- **[MigrationPlan.md](MigrationPlan.md)** — the phase-by-phase plan and record of what was
+- **[Documents/MigrationPlan.md](Documents/MigrationPlan.md)** — the phase-by-phase plan and record of what was
   actually built and verified at each step (summarized in the timeline above).
-- **[TEST_PLAN.md](TEST_PLAN.md)** — the *original* test plan, written for the legacy
-  socket/Swing architecture. Superseded by the automated suites under `backend/src/test/java`
-  (`api/*Test.java`, `server/DBManagerTest.java`, `model/*Test.java`, `dto/DtoMappingTest.java`)
-  and `frontend/src/**/*.test.js`; kept as a historical reference rather than rewritten.
-- **[CutoverReferenceMap.md](CutoverReferenceMap.md)** — the reference audit performed before
-  deleting the legacy socket/Swing code, mapping every remaining call site (including the
-  non-obvious ones, like `packet.Packet.sanitize` leaking into the domain model) to confirm what
-  was actually safe to remove.
-- **[DeploymentPlan.md](DeploymentPlan.md)** — plan for running the app on a Raspberry Pi at home,
+- **[Documents/DeploymentPlan.md](Documents/DeploymentPlan.md)** — plan for running the app on a Raspberry Pi at home,
   reachable from any of the user's own devices over Tailscale rather than the public internet.
+- **[Documents/legacy/](Documents/legacy/)** — superseded docs and artifacts kept for historical reference rather than
+  deleted, with [Documents/legacy/README.md](Documents/legacy/README.md) indexing what moved there and why (includes
+  the original `TEST_PLAN.md` and `CutoverReferenceMap.md`).
 
 ---
 
