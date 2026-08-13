@@ -2,7 +2,9 @@
 
 A chat application originally built as a pure-Java raw-socket server with a Swing desktop
 client, migrated to a full-stack REST + WebSocket application (Spring Boot, PostgreSQL, Svelte).
-
+---
+<img width="1901" height="1025" alt="Screenshot 2026-08-12 232647" src="https://github.com/user-attachments/assets/3915c990-e0e2-4066-9933-78a06e23bd8a" />
+<img width="1902" height="1033" alt="Screenshot 2026-08-12 232728" src="https://github.com/user-attachments/assets/38ab1abf-22ae-4343-8485-c45f4b142aec" />
 ---
 
 ## Project Timeline
