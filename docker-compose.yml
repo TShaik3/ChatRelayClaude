@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: chatrelay
       POSTGRES_USER: chatrelay
@@ -17,6 +18,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,7 +27,11 @@ services:
       CHATRELAY_DB_USER: chatrelay
       CHATRELAY_DB_PASSWORD: chatrelay
     ports:
-      - "8080:8080"
+      # Bound to loopback only -- tailscale serve (already proxying HTTPS from the tailnet to
+      # localhost:8080) is the sole intended entry point. Without this, "8080:8080" binds all
+      # interfaces, letting any other device on the same LAN reach the app directly, bypassing
+      # Tailscale entirely.
+      - "127.0.0.1:8080:8080"
 
 volumes:
   pgdata:
