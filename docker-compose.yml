@@ -26,6 +26,19 @@ services:
       CHATRELAY_DB_URL: jdbc:postgresql://postgres:5432/chatrelay
       CHATRELAY_DB_USER: chatrelay
       CHATRELAY_DB_PASSWORD: chatrelay
+      # Opt-in HTTPS using a cert issued by `tailscale cert` for the tailnet hostname (see
+      # DeploymentPlan.md) -- Spring Boot loads PEM certs natively via these two properties, no
+      # keystore conversion needed. Unset (the default), SERVER_SSL_ENABLED is empty/false and
+      # Spring Boot serves plain HTTP exactly as before; nothing here affects anyone not opting in
+      # via .env. This sidesteps `tailscale serve`'s reverse proxy entirely (see the ports comment
+      # below for why that mattered) by having the app itself terminate TLS.
+      SERVER_SSL_ENABLED: ${TLS_ENABLED:-false}
+      SERVER_SSL_CERTIFICATE: ${TLS_CERT_FILE:-}
+      SERVER_SSL_CERTIFICATE_PRIVATE_KEY: ${TLS_KEY_FILE:-}
+    volumes:
+      # Empty/unused unless TLS_CERT_FILE/TLS_KEY_FILE above point inside it. Docker creates this
+      # as an empty directory automatically if ./certs doesn't exist, so it's a no-op otherwise.
+      - ./certs:/certs:ro
     ports:
       # Bound to a single interface, not all of them -- plain "8080:8080" would let any other
       # device on the same LAN reach the app directly, bypassing Tailscale entirely. TAILSCALE_BIND

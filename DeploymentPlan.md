@@ -129,6 +129,37 @@ piece of infrastructure (a registry) for faster deploys.
   (plain HTTP, with a port number) instead of a clean HTTPS tailnet URL. That's a smaller loss
   than it sounds — traffic between tailnet nodes is already WireGuard-encrypted at the network
   layer, so this drops app-layer TLS on top of an already-encrypted link, not encryption itself.
+- **HTTPS without `tailscale serve`: Spring Boot terminates TLS itself.** Since only running this
+  for a few weeks, a one-time cert (no renewal automation) is enough — a Tailscale-issued cert is
+  Let's Encrypt-backed and lasts ~90 days, well past that. This avoids `tailscale serve`'s proxy
+  layer entirely (the thing that broke the WebSocket upgrade above) by having the app answer
+  HTTPS directly; Spring Boot 3.1+ loads a PEM cert/key pair natively via `server.ssl.certificate`
+  / `server.ssl.certificate-private-key`, no keystore conversion needed. Wired as opt-in env vars
+  in `docker-compose.yml` (`TLS_ENABLED`/`TLS_CERT_FILE`/`TLS_KEY_FILE`, all unset/false by
+  default) so this doesn't affect anyone running the compose file without certs.
+
+  On the Pi:
+  ```bash
+  sudo tailscale cert <hostname>.<tailnet-name>.ts.net   # from `tailscale status`/admin console
+  mkdir -p certs
+  sudo mv <hostname>.<tailnet-name>.ts.net.crt certs/tailnet.crt
+  sudo mv <hostname>.<tailnet-name>.ts.net.key certs/tailnet.key
+  sudo chown "$USER":"$USER" certs/tailnet.*
+  ```
+  Add to `.env` (alongside the existing `TAILSCALE_BIND` line):
+  ```
+  TLS_ENABLED=true
+  TLS_CERT_FILE=/certs/tailnet.crt
+  TLS_KEY_FILE=/certs/tailnet.key
+  ```
+  Then `docker compose up -d` (no rebuild needed — this is config, not code). Browse to
+  `https://<hostname>.<tailnet-name>.ts.net:8080` afterward, **not** the raw Tailscale IP — the
+  cert is issued for the hostname, so a browser connecting by IP will fail certificate validation
+  even though the connection itself works.
+
+  The one thing to remember later: this cert quietly expires around the 90-day mark with nothing
+  in this plan renewing it. If this deployment outlives "a few weeks," either rerun the
+  `tailscale cert` step then, or revisit setting up actual renewal automation.
 
 ## Phase 4 — Keep it running
 

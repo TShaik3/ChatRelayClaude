@@ -15,3 +15,6 @@ frontend/dist/
 
 # Host-specific deployment config (e.g. TAILSCALE_BIND) -- never the same value across machines
 .env
+
+# TLS cert + private key issued by `tailscale cert` -- never commit a private key
+/certs/
